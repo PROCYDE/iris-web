@@ -1483,8 +1483,16 @@ class PostInit:
                 celery.register_task(task)
 
     def _register_default_modules(self):
-        modules = ['iris_vt_module', 'iris_misp_module', 'iris_check_module',
-                   'iris_webhooks_module', 'iris_intelowl_module']
+        # Check if environment variable is set to override default modules
+        default_modules_env = os.environ.get('IRIS_DEFAULT_MODULES', '')
+
+        # If environment variable is empty, use the default modules
+        if not default_modules_env:
+            modules = ['iris_vt_module', 'iris_misp_module', 'iris_check_module',
+                    'iris_webhooks_module', 'iris_intelowl_module']
+        else:
+            # Split the environment variable into a list of modules
+            modules = [module.strip() for module in default_modules_env.split(',') if module.strip()]
 
         for module_name in modules:
             class_, _ = instantiate_module_from_name(module_name)
@@ -1502,6 +1510,7 @@ class PostInit:
             else:
                 iris_module_disable_by_id(module.id)
                 self._logger.info(f'Successfully registered {module_name}')
+
 
     def _custom_assets_symlinks(self):
         try:
