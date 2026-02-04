@@ -1483,8 +1483,38 @@ class PostInit:
                 celery.register_task(task)
 
     def _register_default_modules(self):
-        modules = ['iris_vt_module', 'iris_misp_module', 'iris_check_module',
-                   'iris_webhooks_module', 'iris_intelowl_module']
+        """Register default modules based on environment configuration.
+        
+        The modules to be registered can be configured via the IRIS_DEFAULT_MODULES environment variable.
+        If not set, a default list of modules will be used.
+        
+        Environment Variable Format:
+            IRIS_DEFAULT_MODULES: JSON array of module names
+            Example: '["iris_misp_module", "iris_check_module", "iris_webhooks_module"]'
+            
+        To disable all default modules, pass an empty array:
+            IRIS_DEFAULT_MODULES: '[]'
+        """
+        # Get modules from environment variable or use defaults
+        modules_env = os.getenv('IRIS_DEFAULT_MODULES')
+        
+        if modules_env is not None:
+            try:
+                modules = json.loads(modules_env)
+                self._logger.info(f'Loading modules from IRIS_DEFAULT_MODULES environment variable: {modules}')
+            except json.JSONDecodeError as e:
+                self._logger.error(f'Failed to parse IRIS_DEFAULT_MODULES environment variable: {e}. Using default modules.')
+                modules = ['iris_vt_module', 'iris_misp_module', 'iris_check_module',
+                           'iris_webhooks_module', 'iris_intelowl_module']
+        else:
+            self._logger.info('IRIS_DEFAULT_MODULES environment variable not set. Using default modules.')
+            modules = ['iris_vt_module', 'iris_misp_module', 'iris_check_module',
+                       'iris_webhooks_module', 'iris_intelowl_module']
+
+        # If modules list is empty, skip registration
+        if not modules:
+            self._logger.info('No default modules configured to register (empty list).')
+            return
 
         for module_name in modules:
             class_, _ = instantiate_module_from_name(module_name)
