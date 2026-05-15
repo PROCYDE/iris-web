@@ -61,7 +61,10 @@ TEMPLATE_PATH = os.path.join(APP_PATH, 'templates/')
 
 SQLALCHEMY_ENGINE_OPTIONS = {
     "json_deserializer": partial(json.loads, object_pairs_hook=collections.OrderedDict),
-    "pool_pre_ping": True
+    "pool_pre_ping": True,
+    "pool_size": int(os.environ.get("SQLALCHEMY_POOL_SIZE", 5)),
+    "max_overflow": int(os.environ.get("SQLALCHEMY_MAX_OVERFLOW", 10)),
+    "pool_timeout": int(os.environ.get("SQLALCHEMY_POOL_TIMEOUT", 30))
 }
 
 db = SQLAlchemy(engine_options=SQLALCHEMY_ENGINE_OPTIONS)  # flask-sqlalchemy
