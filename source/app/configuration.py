@@ -83,7 +83,7 @@ class IrisConfig(configparser.ConfigParser):
 
     def _load_azure_key_vault(self, section, option):
         if not (hasattr(self, 'key_vault_name') and self.key_vault_name):
-            return
+            return None
 
         key = f"{section}-{option}".replace('_', '-')
 
@@ -369,7 +369,7 @@ for _setting, _parse in _celery_settings:
 
 class Config:
     # Handled by bumpversion
-    IRIS_VERSION = "v2.5.0-beta.1-dev-pr3" # DO NOT EDIT THIS LINE MANUALLY
+    IRIS_VERSION = "v2.5.0-beta.1-dev-pr8" # DO NOT EDIT THIS LINE MANUALLY
 
     if os.environ.get('IRIS_DEMO_VERSION') is not None and os.environ.get('IRIS_DEMO_VERSION') != 'None':
         IRIS_VERSION = os.environ.get('IRIS_DEMO_VERSION')
