@@ -618,6 +618,7 @@ def alerts_escalate_route(alert_id) -> Response:
                        ctx_less=True)
 
         add_obj_history_entry(alert, f"Alert escalated to case #{case.case_id}")
+        db.session.commit()
 
         alert = call_modules_hook('on_postload_alert_escalate', alert)
 
@@ -689,6 +690,7 @@ def alerts_merge_route(alert_id) -> Response:
 
         track_activity(f"merge alert #{alert_id} into existing case #{target_case_id}", caseid=target_case_id)
         add_obj_history_entry(alert, f"Alert merged into existing case #{target_case_id}")
+        db.session.commit()
 
         # Return the updated alert as JSON
         return response_success(data=CaseSchema().dump(case))
@@ -744,6 +746,7 @@ def alerts_unmerge_route(alert_id) -> Response:
 
         track_activity(f"unmerge alert #{alert_id} from case #{target_case_id}", caseid=target_case_id)
         add_obj_history_entry(alert, f"Alert unmerged from case #{target_case_id}")
+        db.session.commit()
 
         alert = call_modules_hook('on_postload_alert_unmerge', alert)
 
@@ -815,6 +818,8 @@ def alerts_batch_merge_route() -> Response:
             add_obj_history_entry(alert, f"Alert merged into existing case #{target_case_id}")
 
             alert = call_modules_hook('on_postload_alert_merge', alert)
+
+        db.session.commit()
 
         if note:
             case.description += f"\n\n### Escalation note\n\n{note}\n\n" if case.description else f"\n\n{note}\n\n"
@@ -896,6 +901,8 @@ def alerts_batch_escalate_route() -> Response:
 
         for alert in alerts_list:
             add_obj_history_entry(alert, f"Alert escalated into new case #{case.case_id}")
+
+        db.session.commit()
 
         # Return the updated case as JSON
         return response_success(data=CaseSchema().dump(case))
