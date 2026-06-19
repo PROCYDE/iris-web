@@ -48,7 +48,7 @@ def track_activity(message, caseid=None, ctx_less=False, user_input=False, displ
     ua.activity_date = datetime.utcnow()
     ua.activity_desc = message.capitalize()
 
-    if iris_current_user.is_authenticated:
+    if iris_current_user and iris_current_user.is_authenticated:
         logger.info(f"{iris_current_user.user} [#{iris_current_user.id}] :: Case {caseid} :: {ua.activity_desc}")
     else:
         logger.info(f"Anonymous :: Case {caseid} :: {ua.activity_desc}")
