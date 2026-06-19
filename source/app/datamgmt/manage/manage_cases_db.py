@@ -55,6 +55,7 @@ from app.models.authorization import User
 from app.models.authorization import UserCaseAccess
 from app.models.authorization import UserCaseEffectiveAccess
 from app.models.iocs import Ioc
+from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CaseProtagonist
 from app.models.cases import CaseTags
 from app.models.cases import CaseState
