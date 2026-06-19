@@ -59,6 +59,7 @@ from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CaseProtagonist
 from app.models.cases import CaseTags
 from app.models.cases import CaseState
+from app.models.customers import Client
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import delete_evidences_comments_in_case
 from app.datamgmt.case.case_notes_db import delete_notes_comments_in_case
