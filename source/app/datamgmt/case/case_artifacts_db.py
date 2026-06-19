@@ -34,7 +34,7 @@ from app.models.models import ArtifactLink
 from app.models.models import IocType
 from app.models.models import Tlp
 from app.models.authorization import User
-from app.models.models import Ioc, IocLink
+from app.models.models import Ioc
 
 
 def get_artifacts(caseid):
@@ -103,15 +103,6 @@ def escalate_artifact(artifact, caseid):
     
     # Add to session and commit to get the ID
     db.session.add(new_ioc)
-    db.session.commit()
-    # return True
-    
-    # Create link to the case
-    ioc_link = IocLink(
-        ioc_id=new_ioc.ioc_id,
-        case_id=caseid
-    )
-    db.session.add(ioc_link)
     db.session.commit()
     return True
 

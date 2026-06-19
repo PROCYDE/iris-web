@@ -41,20 +41,7 @@ from app.models.models import Tags
 from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
-from app.models.models import CaseEventsArtifact
-from app.models.models import Artifact
-from app.models.models import ArtifactLink
-from app.models.models import ArtifactAssetLink
-from app.models.models import ArtifactComments
-from app.models.evidences import CaseReceivedFile
-from app.models.models import CaseTasks
-from app.models.cases import Cases, CaseStatus, CaseClassification
-from app.models.cases import CasesEvent
-from app.models.customers import Client
-from app.models.models import DataStoreFile
-from app.models.models import DataStorePath
 from app.models.models import IocAssetLink
-from app.models.models import IocLink
 from app.models.models import Notes
 from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
@@ -324,31 +311,16 @@ def get_case_details_rt(case_id):
 
 
 def _delete_iocs(case_identifier):
-    # TODO should do this with the 2.0 SQLAlchemy API
-    # TODO maybe this can be performed automatically with cascades
-    # Collect IOC ids linked to the case before removing the link rows.
     ioc_ids = {
         ioc.ioc_id for ioc in Ioc.query.with_entities(Ioc.ioc_id).filter(Ioc.case_id == case_identifier).all()
     }
-    ioc_ids.update(
-        ioc_link.ioc_id for ioc_link in IocLink.query.with_entities(IocLink.ioc_id).filter(
-            IocLink.case_id == case_identifier
-        ).all()
-    )
-
-    # Remove every IOC link for the deleted case so the case FK can be dropped safely.
-    IocLink.query.filter(
-        IocLink.case_id == case_identifier
-    ).delete(synchronize_session=False)
 
     for ioc_id in ioc_ids:
-        # Remove IOC-event links for the case being deleted.
         CaseEventsIoc.query.filter(
             CaseEventsIoc.ioc_id == ioc_id,
             CaseEventsIoc.case_id == case_identifier
         ).delete(synchronize_session=False)
 
-        # Remove IOC-asset links only for assets that belong to the deleted case.
         IocAssetLink.query.filter(
             IocAssetLink.ioc_id == ioc_id,
             IocAssetLink.asset_id.in_(
@@ -373,10 +345,6 @@ def _delete_iocs(case_identifier):
             Comments.query.filter(
                 Comments.comment_id.in_(comment_ids)
             ).delete(synchronize_session=False)
-
-        # If the IOC is still linked to another case, keep the IOC and its comments.
-        if IocLink.query.filter(IocLink.ioc_id == ioc_id).first():
-            continue
 
         Ioc.query.filter(Ioc.ioc_id == ioc_id).delete(synchronize_session=False)
 

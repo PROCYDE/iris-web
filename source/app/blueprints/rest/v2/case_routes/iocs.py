@@ -46,7 +46,9 @@ from app.models.iocs import Ioc
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.schema.marshables import IocSchema
 from app.business.cases import cases_exists
-from app.datamgmt.case.case_iocs_db import get_linked_cases_for_ioc
+from app.datamgmt.case.case_iocs_db import get_ioc_links
+from app.blueprints.iris_user import iris_current_user
+from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 
 
 class IocsOperations:
@@ -205,31 +207,36 @@ def delete_case_ioc(case_identifier, identifier):
 @case_iocs_blueprint.get('/<int:identifier>/linked-cases')
 @ac_api_requires()
 def get_ioc_linked_cases(case_identifier, identifier):
-    """Get all cases linked to this IOC with pagination."""
     try:
-        # Verify the IOC exists and user has access to the current case
         ioc = iocs_get(identifier)
         if not ac_fast_check_current_user_has_case_access(case_identifier,
                                                           [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=case_identifier)
 
-        # Get pagination parameters from request
+        user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
+        links = get_ioc_links(identifier, user_search_limitations)
+        links = [link for link in links if link['case_id'] != case_identifier]
+
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 50, type=int)
-        
-        # Limit per_page to reasonable values
         per_page = min(per_page, 100)
-        
-        # Get linked cases with pagination
-        result = get_linked_cases_for_ioc(identifier, case_identifier, page=page, per_page=per_page)
-        
-        # Wrap in standard success response format
+
+        total = len(links)
+
+        result = {
+            'cases': links[(page - 1) * per_page: page * per_page],
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page if total > 0 else 0
+        }
+
         return response(200, data={
             'status': 'success',
             'message': '',
             'data': result
         })
-        
+
     except ObjectNotFoundError:
         return response_api_not_found()
     except Exception as e:

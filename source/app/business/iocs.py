@@ -97,7 +97,7 @@ def iocs_update(ioc: Ioc, ioc_sc: Ioc) -> (Ioc, str):
 def iocs_delete(ioc: Ioc):
     call_modules_hook('on_preload_ioc_delete', ioc.ioc_id)
 
-    delete_ioc(ioc, ioc.case_id)
+    delete_ioc(ioc)
 
     call_modules_hook('on_postload_ioc_delete', ioc.ioc_id, caseid=ioc.case_id)
 

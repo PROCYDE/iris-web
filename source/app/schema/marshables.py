@@ -941,18 +941,8 @@ class IocSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     tlp = ma.Nested(TlpSchema)
 
     def get_link(self, ioc):
-        # Prefer the case id from schema context (viewing case), fall back to IOC's stored case_id
-        caseid = None
-        try:
-            caseid = self.context.get('caseid') if getattr(self, 'context', None) else None
-        except Exception:
-            caseid = None
-
-        if caseid is None:
-            caseid = getattr(ioc, 'case_id', None)
-
         user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
-        ial = get_ioc_links(ioc.ioc_id, user_search_limitations, caseid)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
         return [row._asdict() for row in ial]
 
     link = ma.Method('get_link')
@@ -1050,18 +1040,8 @@ class IocSchema(ma.SQLAlchemyAutoSchema):
     ioc_type: Optional[IocTypeSchema] = ma.Nested(IocTypeSchema, required=False)
 
     def get_link(self, ioc):
-        # Prefer the case id from schema context (viewing case), fall back to IOC's stored case_id
-        caseid = None
-        try:
-            caseid = self.context.get('caseid') if getattr(self, 'context', None) else None
-        except Exception:
-            caseid = None
-
-        if caseid is None:
-            caseid = getattr(ioc, 'case_id', None)
-
         user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
-        ial = get_ioc_links(ioc.ioc_id, user_search_limitations, caseid)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
         return [row._asdict() for row in ial]
 
     link = ma.Method('get_link')

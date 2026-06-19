@@ -77,7 +77,7 @@ def case_list_ioc(caseid):
 
         # Get links of the IoCs seen in other cases
         user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
-        ial = get_ioc_links(ioc.ioc_id, user_search_limitations, caseid)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
 
         out['link'] = [row._asdict() for row in ial]
         # Legacy, must be changed next version
