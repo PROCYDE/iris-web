@@ -352,9 +352,6 @@ if is_authentication_oidc():
                 group_name_to_id = {
                     group.group_name: group.group_id for group in groups_list
                 }
-                group_name_to_id = {
-                    group.group_name: group.group_id for group in groups_list
-                }
             else:
                 group_name_to_id = json.loads(userroles_mapping_field)
             new_user_group = [group_name_to_id[group_name] for group_name in user_group if group_name in group_name_to_id]
