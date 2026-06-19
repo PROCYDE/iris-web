@@ -1434,9 +1434,9 @@ class PostInit:
                 self._logger.info("Creating base analysis status")
                 create_safe_analysis_status()
 
-                if not prevent_objects:
-                    self._logger.info("Creating base case classification")
-                    self._create_safe_classifications()
+                #if not prevent_objects:
+                    #self._logger.info("Creating base case classification")
+                    #self._create_safe_classifications()
 
                 self._logger.info("Creating base tasks status")
                 create_safe_task_status()

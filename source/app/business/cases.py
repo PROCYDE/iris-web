@@ -38,6 +38,8 @@ from app.datamgmt.case.case_db import get_review_id_from_name
 from app.datamgmt.alerts.alerts_db import get_alert_status_by_name
 from app.datamgmt.manage.manage_case_templates_db import case_template_pre_modifier
 from app.datamgmt.manage.manage_case_templates_db import case_template_post_modifier
+from app.datamgmt.manage.manage_case_templates_db import get_triggers_by_case_template_id
+from app.datamgmt.manage.manage_case_response_db import execute_and_save_trigger
 from app.datamgmt.manage.manage_case_state_db import get_case_state_by_name
 from app.datamgmt.manage.manage_cases_db import delete_case
 from app.datamgmt.manage.manage_cases_db import reopen_case
@@ -116,6 +118,7 @@ def cases_exists(identifier):
 def cases_create(user, case: Cases, case_template_id) -> Cases:
     case.owner_id = user.id
     case.severity_id = 4
+    case.case_template_id = case_template_id
 
     if case_template_id and len(case_template_id) > 0:
         case = case_template_pre_modifier(case, case_template_id)
@@ -136,8 +139,16 @@ def cases_create(user, case: Cases, case_template_id) -> Cases:
             logger.error(e.__str__())
             raise BusinessProcessingError(f'Unexpected error when loading template {case_template_id} to new case.')
 
-    ac_set_new_case_access(user, case.case_id, case.client_id)
+        try:
+            triggers = get_triggers_by_case_template_id(int(case_template_id))
+            for trigger in triggers:
+                trigger_result = execute_and_save_trigger(trigger, case.case_id)
+                if trigger_result:
+                    logger.info(trigger_result)
+        except Exception as e:
+            logger.error(f'Unexpected error when executing triggers for template {case_template_id}: {e}')
 
+    ac_set_new_case_access(user, case.case_id, case.client_id)
     case = call_modules_hook('on_postload_case_create', case)
 
     add_obj_history_entry(case, 'created')
@@ -218,6 +229,9 @@ def cases_update(case: Cases, updated_case, protagonists, tags) -> Cases:
         save_case_tags(tags, case)
 
         updated_case = call_modules_hook('on_postload_case_update', data=updated_case, caseid=case.case_id)
+
+        db.session.add(updated_case)
+        db.session.commit()
 
         add_obj_history_entry(case, 'case info updated')
         track_activity(f'case updated "{updated_case.name}"', caseid=case.case_id)

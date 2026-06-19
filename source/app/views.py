@@ -17,10 +17,12 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
+from app.blueprints.rest.case.case_triggers_routes import case_triggers_blueprint
 from app.blueprints.pages.activities.activities_routes import activities_blueprint
 from app.blueprints.pages.alerts.alerts_routes import alerts_blueprint
 from app.blueprints.pages.case.case_routes import case_blueprint
 from app.blueprints.pages.case.case_assets_routes import case_assets_blueprint
+from app.blueprints.pages.case.case_artifact_routes import case_artifact_blueprint
 from app.blueprints.pages.case.case_graphs_routes import case_graph_blueprint
 from app.blueprints.pages.case.case_notes_routes import case_notes_blueprint
 from app.blueprints.pages.case.case_rfiles_routes import case_rfiles_blueprint
@@ -43,6 +45,7 @@ from app.blueprints.pages.manage.manage_customers_routes import manage_customers
 from app.blueprints.pages.manage.manage_groups_routes import manage_groups_blueprint
 from app.blueprints.pages.manage.manage_ioc_types_routes import manage_ioc_type_blueprint
 from app.blueprints.pages.manage.manage_modules_routes import manage_modules_blueprint
+from app.blueprints.pages.manage.manage_webhooks_routes import manage_webhooks_blueprint
 from app.blueprints.pages.manage.manage_objects_routes import manage_objects_blueprint
 from app.blueprints.pages.manage.manage_srv_settings_routes import manage_srv_settings_blueprint
 from app.blueprints.pages.manage.manage_templates_routes import manage_templates_blueprint
@@ -123,6 +126,7 @@ def register_blueprints(app):
     app.register_blueprint(manage_templates_rest_blueprint)
     app.register_blueprint(manage_modules_blueprint)
     app.register_blueprint(manage_modules_rest_blueprint)
+    app.register_blueprint(manage_webhooks_blueprint)
     app.register_blueprint(manage_customers_blueprint)
     app.register_blueprint(manage_customers_rest_blueprint)
     app.register_blueprint(manage_analysis_status_rest_blueprint)
@@ -159,6 +163,7 @@ def register_blueprints(app):
     app.register_blueprint(case_notes_rest_blueprint)
     app.register_blueprint(case_assets_blueprint)
     app.register_blueprint(case_assets_rest_blueprint)
+    app.register_blueprint(case_artifact_blueprint)
     app.register_blueprint(case_ioc_blueprint)
     app.register_blueprint(case_ioc_rest_blueprint)
     app.register_blueprint(case_rfiles_blueprint)
@@ -167,6 +172,7 @@ def register_blueprints(app):
     app.register_blueprint(case_graph_rest_blueprint)
     app.register_blueprint(case_tasks_blueprint)
     app.register_blueprint(case_tasks_rest_blueprint)
+    app.register_blueprint(case_triggers_blueprint)
     app.register_blueprint(case_blueprint)
     app.register_blueprint(case_rest_blueprint)
     app.register_blueprint(reports_rest_blueprint)

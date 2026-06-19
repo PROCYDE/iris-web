@@ -286,9 +286,13 @@ def add_customers():
 @manage_customers_rest_blueprint.route('/manage/customers/delete/<int:client_id>', methods=['POST'])
 @endpoint_deprecated('DELETE', '/api/v2/manage/customers/{identifier}')
 @ac_api_requires(Permissions.customers_write)
-@ac_api_requires_client_access()
 def delete_customers(client_id):
     try:
+        # Allow server administrators to delete any customer; otherwise enforce client access
+        if not ac_current_user_has_permission(Permissions.server_administrator):
+            from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+            if not user_has_client_access(iris_current_user.id, client_id):
+                return response_error('Permission denied', status=403)
         customer = customers_get(client_id)
         delete_client(customer)
     except ObjectNotFoundError:

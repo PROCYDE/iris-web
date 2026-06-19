@@ -21,8 +21,9 @@ from flask import Blueprint
 from app import app
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_success
+from flask import request
 
-rest_api_blueprint = Blueprint('rest_api', __name__)
+rest_api_blueprint = Blueprint('rest_api', __name__,template_folder='templates')
 
 
 @rest_api_blueprint.route('/api/ping', methods=['GET'])
@@ -41,3 +42,11 @@ def api_version():
     }
 
     return response_success(data=versions)
+
+
+@rest_api_blueprint.route('/api/post-data', methods=['POST'])
+@ac_api_requires()
+def api_post_data():
+    payload = request.get_json(silent=True) or {}
+
+    return response_success(data=payload)

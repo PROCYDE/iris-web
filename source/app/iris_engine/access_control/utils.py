@@ -165,6 +165,12 @@ def ac_get_effective_permissions_of_user(user):
     return final_perm
 
 
+def ac_fast_check_current_user_has_case_access(cid, access_level):
+    from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access as _ac_fast_check_current_user_has_case_access
+
+    return _ac_fast_check_current_user_has_case_access(cid, access_level)
+
+
 def ac_ldp_group_removal(user_id, group_id):
     """
     Access control lockdown prevention on group removal

@@ -26,6 +26,7 @@ from app.db import db
 from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.iris_user import iris_current_user
+from flask_login import current_user
 from app.models.errors import BusinessProcessingError
 from app.business.tasks import tasks_delete
 from app.business.tasks import tasks_create
@@ -52,6 +53,7 @@ from app.blueprints.responses import response_success
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 case_tasks_rest_blueprint = Blueprint('case_tasks_rest', __name__)
+case_tasks_blueprint = case_tasks_rest_blueprint
 
 
 @case_tasks_rest_blueprint.route('/case/tasks/list', methods=['GET'])
@@ -216,7 +218,8 @@ def case_comment_task_add(cur_id: int, caseid: int):
 
         comment = comment_schema.load(request.get_json())
         comment.comment_case_id = caseid
-        comment.comment_user_id = iris_current_user.id
+        # Prefer Flask-Login identity and fall back to legacy iris_current_user for compatibility.
+        comment.comment_user_id = current_user.id if getattr(current_user, 'is_authenticated', False) else iris_current_user.id
         comment.comment_date = datetime.now()
         comment.comment_update_date = datetime.now()
         db.session.add(comment)
@@ -266,7 +269,8 @@ def case_comment_task_edit(cur_id: int, com_id: int, caseid: int):
 @ac_api_requires()
 def case_comment_task_delete(cur_id: int, com_id: int, caseid: int):
 
-    success, msg = delete_task_comment(iris_current_user.id, cur_id, com_id)
+    actor_user_id = current_user.id if getattr(current_user, 'is_authenticated', False) else iris_current_user.id
+    success, msg = delete_task_comment(actor_user_id, cur_id, com_id)
     if not success:
         return response_error(msg)
 

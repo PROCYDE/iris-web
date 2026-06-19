@@ -23,11 +23,13 @@ from flask import url_for
 from flask_wtf import FlaskForm
 
 from app.datamgmt.case.case_events_db import get_case_assets_for_tm
+from app.datamgmt.case.case_events_db import get_case_artifacts_for_tm
 from app.datamgmt.case.case_events_db import get_case_event
 from app.datamgmt.case.case_events_db import get_case_events_comments_count
 from app.datamgmt.case.case_events_db import get_case_iocs_for_tm
 from app.datamgmt.case.case_events_db import get_default_cat
 from app.datamgmt.case.case_events_db import get_event_assets_ids
+from app.datamgmt.case.case_events_db import get_event_artifacts_ids
 from app.datamgmt.case.case_events_db import get_event_iocs_ids
 from app.datamgmt.case.case_events_db import get_events_categories
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
@@ -104,16 +106,18 @@ def event_view_modal(cur_id, caseid, url_redir):
 
     assets = get_case_assets_for_tm(caseid)
     iocs = get_case_iocs_for_tm(caseid)
+    artifacts = get_case_artifacts_for_tm(caseid)
 
     assets_prefill = get_event_assets_ids(cur_id, caseid)
     iocs_prefill = get_event_iocs_ids(cur_id, caseid)
+    artifacts_prefill = get_event_artifacts_ids(cur_id, caseid)
     comments_map = get_case_events_comments_count([cur_id])
 
     usr_name, = User.query.filter(User.id == event.user_id).with_entities(User.name).first()
 
     return render_template("modal_add_case_event.html", form=form, event=event, user_name=usr_name, tags=_EVENT_TAGS,
-                           assets=assets, iocs=iocs, comments_map=comments_map,
-                           assets_prefill=assets_prefill, iocs_prefill=iocs_prefill,
+                           assets=assets, iocs=iocs, artifacts=artifacts, comments_map=comments_map,
+                           assets_prefill=assets_prefill, iocs_prefill=iocs_prefill, artifacts_prefill=artifacts_prefill,
                            category=event.category, attributes=event.custom_attributes)
 
 
@@ -137,11 +141,13 @@ def case_add_event_modal(caseid, url_redir):
     form = CaseEventForm()
     assets = get_case_assets_for_tm(caseid)
     iocs = get_case_iocs_for_tm(caseid)
+    artifacts = get_case_artifacts_for_tm(caseid)
     def_cat = get_default_cat()
     categories = get_events_categories()
     form.event_category_id.choices = [(c.id, c.name) for c in categories]
     form.event_in_graph.data = True
 
     return render_template("modal_add_case_event.html", form=form, event=event,
-                           tags=_EVENT_TAGS, assets=assets, iocs=iocs, assets_prefill=None, category=def_cat,
+                           tags=_EVENT_TAGS, assets=assets, iocs=iocs, artifacts=artifacts, 
+                           assets_prefill=None, artifacts_prefill=None, category=def_cat,
                            attributes=event.custom_attributes)

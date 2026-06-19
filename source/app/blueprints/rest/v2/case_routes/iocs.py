@@ -29,6 +29,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
+from app.blueprints.rest.endpoints import response
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.rest.parsing import parse_fields_parameters
 from app.models.errors import BusinessProcessingError
@@ -44,6 +45,8 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.models.iocs import Ioc
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.schema.marshables import IocSchema
+from app.business.cases import cases_exists
+from app.datamgmt.case.case_iocs_db import get_linked_cases_for_ioc
 
 
 class IocsOperations:
@@ -70,9 +73,9 @@ class IocsOperations:
             filtered_iocs = iocs_filter(case_identifier, pagination_parameters, request.args.to_dict())
 
             if fields:
-                iocs_schema = IocSchemaForAPIV2(only=fields)
+                iocs_schema = IocSchemaForAPIV2(only=fields, context={'caseid': case_identifier})
             else:
-                iocs_schema = self._schema
+                iocs_schema = IocSchemaForAPIV2(context={'caseid': case_identifier})
 
             return response_api_paginated(iocs_schema, filtered_iocs)
 
@@ -89,9 +92,9 @@ class IocsOperations:
             request_data = call_deprecated_on_preload_modules_hook('ioc_create', request.get_json(), case_identifier)
             request_data['case_id'] = case_identifier
 
-            ioc = self._schema.load(request_data)
+            ioc = IocSchemaForAPIV2().load(request_data)
             ioc = iocs_create(ioc)
-            result = self._schema.dump(ioc)
+            result = IocSchemaForAPIV2(context={'caseid': case_identifier}).dump(ioc)
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', e.messages)
@@ -107,12 +110,15 @@ class IocsOperations:
         try:
             ioc = self._get_ioc_in_case(identifier, case_identifier)
 
-            result = self._schema.dump(ioc)
+            result = IocSchemaForAPIV2(context={'caseid': case_identifier}).dump(ioc)
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
 
     def update(self, case_identifier, identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
         if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=case_identifier)
 
@@ -129,7 +135,7 @@ class IocsOperations:
 
             ioc = iocs_update(ioc, ioc_sc)
 
-            result = self._schema.dump(ioc)
+            result = IocSchemaForAPIV2(context={'caseid': case_identifier}).dump(ioc)
             return response_api_success(result)
 
         except ValidationError as e:
@@ -142,6 +148,9 @@ class IocsOperations:
             return response_api_error(e.get_message(), data=e.get_data())
 
     def delete(self, case_identifier, identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
         if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=case_identifier)
 
@@ -191,3 +200,38 @@ def update_ioc(case_identifier, identifier):
 @ac_api_requires()
 def delete_case_ioc(case_identifier, identifier):
     return iocs_operations.delete(case_identifier, identifier)
+
+
+@case_iocs_blueprint.get('/<int:identifier>/linked-cases')
+@ac_api_requires()
+def get_ioc_linked_cases(case_identifier, identifier):
+    """Get all cases linked to this IOC with pagination."""
+    try:
+        # Verify the IOC exists and user has access to the current case
+        ioc = iocs_get(identifier)
+        if not ac_fast_check_current_user_has_case_access(case_identifier,
+                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        # Get pagination parameters from request
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        # Limit per_page to reasonable values
+        per_page = min(per_page, 100)
+        
+        # Get linked cases with pagination
+        result = get_linked_cases_for_ioc(identifier, case_identifier, page=page, per_page=per_page)
+        
+        # Wrap in standard success response format
+        return response(200, data={
+            'status': 'success',
+            'message': '',
+            'data': result
+        })
+        
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except Exception as e:
+        logger.error(f"Error getting linked cases for IOC {identifier}: {e}")
+        return response_api_error("Internal server error")

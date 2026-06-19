@@ -25,6 +25,7 @@ class TestsRestGlobalTasks(TestCase):
 
     def setUp(self) -> None:
         self._subject = Iris()
+        self._subject.clear_database()
 
     def tearDown(self):
         self._subject.clear_database()

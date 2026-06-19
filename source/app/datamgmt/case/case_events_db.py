@@ -27,6 +27,7 @@ from app.models.assets import CaseAssets
 from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
+from app.models.models import CaseEventsArtifact
 from app.models.cases import CasesEvent
 from app.models.comments import Comments
 from app.models.comments import EventComments
@@ -35,6 +36,8 @@ from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType
 from app.models.authorization import User
+
+from app.datamgmt.case.case_artifacts_db import get_artifacts
 
 
 def get_case_events_assets_graph(caseid):
@@ -65,6 +68,20 @@ def get_case_events_assets_graph(caseid):
     ).all()
 
     return events
+
+
+def get_case_artifacts_for_tm(caseid):
+    artifacts = [{'artifact_value': '', 'artifact_id': '0'}]
+
+    artifacts_list = get_artifacts(caseid)
+
+    for artifact in artifacts_list:
+        artifacts.append({
+            'artifact_value': artifact.artifact_value,
+            'artifact_id': artifact.artifact_id
+        })
+
+    return artifacts
 
 
 def get_case_events_ioc_graph(caseid):
@@ -243,6 +260,17 @@ def get_event_iocs_ids(event_id, caseid):
     ).all()
 
     return [x[0] for x in iocs_list]
+
+
+def get_event_artifacts_ids(event_id, caseid):
+    artifacts_list = CaseEventsArtifact.query.with_entities(
+        CaseEventsArtifact.artifact_id
+    ).filter(
+        CaseEventsArtifact.event_id == event_id,
+        CaseEventsArtifact.case_id == caseid
+    ).all()
+
+    return [x[0] for x in artifacts_list]
 
 
 def update_event_assets(event_id, caseid, assets_list, iocs_list, sync_iocs_assets):

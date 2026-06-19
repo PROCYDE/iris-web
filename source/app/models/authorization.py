@@ -66,6 +66,11 @@ class Permissions(enum.Enum):
     activities_read = 0x400
     all_activities_read = 0x800
 
+    tasks_execute = 0x1000
+
+    webhooks_read = 0x2000
+    webhooks_write = 0x4000
+
 
 class Organisation(db.Model):
     __tablename__ = 'organisations'

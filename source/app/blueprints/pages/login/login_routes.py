@@ -320,6 +320,7 @@ if is_authentication_oidc():
 
             # generate random password
             password = "".join(random.choices(string.printable[:-6], k=16))
+            password = "".join(random.choices(string.printable[:-6], k=16))
 
             user = create_user(
                 user_name,
@@ -348,6 +349,9 @@ if is_authentication_oidc():
         if user_group:
             if not userroles_mapping_field:
                 groups_list = get_groups_list()
+                group_name_to_id = {
+                    group.group_name: group.group_id for group in groups_list
+                }
                 group_name_to_id = {
                     group.group_name: group.group_id for group in groups_list
                 }

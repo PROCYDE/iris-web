@@ -175,18 +175,18 @@ def delete_asset(asset: CaseAssets):
     ).delete()
 
     # Delete the relevant records from the AssetComments table
-    com_ids = AssetComments.query.with_entities(
+    com_rows = AssetComments.query.with_entities(
         AssetComments.comment_id
     ).filter(
         AssetComments.comment_asset_id == asset.asset_id
     ).all()
 
-    com_ids = [c.comment_id for c in com_ids]
-    AssetComments.query.filter(AssetComments.comment_id.in_(com_ids)).delete()
+    # Normalize to a list of scalar ids (SQLAlchemy may return row-tuples)
+    com_ids = [r[0] for r in com_rows] if com_rows else []
 
-    Comments.query.filter(
-        Comments.comment_id.in_(com_ids)
-    ).delete()
+    if com_ids:
+        AssetComments.query.filter(AssetComments.comment_id.in_(com_ids)).delete(synchronize_session=False)
+        Comments.query.filter(Comments.comment_id.in_(com_ids)).delete(synchronize_session=False)
 
     db.session.delete(asset)
 
