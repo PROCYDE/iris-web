@@ -131,14 +131,6 @@ jobs:
           docker load --input ${{ runner.temp }}/iriswebapp_app.tar
       - name: Check out iris
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Debug Docker state
-        run: |
-          docker info
-          docker ps -a
-          docker network ls
-          sudo ss -tlnp | grep 5432 || echo "nothing on 5432"
-
       - name: Start development server
         run: |
           cp .env.tests.model .env
