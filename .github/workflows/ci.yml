@@ -135,8 +135,6 @@ jobs:
         run: |
           cp .env.tests.model .env
           docker compose --file docker-compose.dev.yml up --detach --wait
-      - name: Output logs
-        run: docker compose logs --file docker-compose.dev.yml --tail=1000
       - name: Generate GraphQL documentation
         run: |
           npx spectaql@^3.0.2 source/spectaql/config.yml
