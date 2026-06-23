@@ -182,14 +182,6 @@ jobs:
         run: |
           cp .env.tests.model .env
           docker compose --file docker-compose.dev.yml up --detach --wait
-      - name: Inspect development server start failure
-        if: ${{ failure() || cancelled() }}
-        run: |
-          docker ps --all
-          docker inspect --format "{{json .State}}" iriswebapp_db | jq
-          docker inspect --format "{{json .State}}" iriswebapp_nginx | jq
-          docker inspect --format "{{json .State}}" iriswebapp_app | jq
-          docker compose logs
       - name: Run tests
         working-directory: tests
         run: |
@@ -200,6 +192,16 @@ jobs:
       - name: Check the absence of errors/stack traces in logs
         run: |
           ! docker compose logs app | grep Traceback -A100
+
+      - name: Dump docker logs
+        if: ${{ failure() || cancelled() }}
+        run: |
+          docker ps --all
+          docker inspect --format "{{json .State}}" iriswebapp_db | jq
+          docker inspect --format "{{json .State}}" iriswebapp_nginx | jq
+          docker inspect --format "{{json .State}}" iriswebapp_app | jq
+          docker inspect --format "{{json .State}}" iriswebapp_worker | jq
+          docker compose logs
       - name: Stop development server
         if: ${{ always() }}
         run: |
@@ -242,6 +244,16 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt
           PYTHONUNBUFFERED=true python -m unittest --verbose
+
+      - name: Dump docker logs
+        if: ${{ failure() || cancelled() }}
+        run: |
+          docker ps --all
+          docker inspect --format "{{json .State}}" iriswebapp_db | jq
+          docker inspect --format "{{json .State}}" iriswebapp_nginx | jq
+          docker inspect --format "{{json .State}}" iriswebapp_app | jq
+          docker inspect --format "{{json .State}}" iriswebapp_worker | jq
+          docker compose logs
 
   test-e2e:
     name: End to end tests
@@ -289,6 +301,16 @@ jobs:
       - name: Run end to end tests
         working-directory: e2e
         run: npx playwright test
+
+      - name: Dump docker logs
+        if: ${{ failure() || cancelled() }}
+        run: |
+          docker ps --all
+          docker inspect --format "{{json .State}}" iriswebapp_db | jq
+          docker inspect --format "{{json .State}}" iriswebapp_nginx | jq
+          docker inspect --format "{{json .State}}" iriswebapp_app | jq
+          docker inspect --format "{{json .State}}" iriswebapp_worker | jq
+          docker compose logs
       - name: Stop development server
         run: |
           docker compose down
