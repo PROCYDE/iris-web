@@ -351,16 +351,28 @@ if is_authentication_oidc():
                 group.group_name: group.group_id for group in groups_list
             }
 
+            group_id_set = {g.group_id for g in groups_list}
+
             if not userroles_mapping_field:
-                new_user_group = [group_name_to_id[group_name] for group_name in user_group if group_name in group_name_to_id]
+                new_user_group = [
+                    group_name_to_id[group_name]
+                    for group_name in user_group
+                    if group_name in group_name_to_id
+                ]
             else:
                 roles_to_group = json.loads(userroles_mapping_field)
                 new_user_group = []
                 for role_name in user_group:
-                    if role_name in roles_to_group:
-                        group_name = roles_to_group[role_name]
-                        if group_name in group_name_to_id:
-                            new_user_group.append(group_name_to_id[group_name])
+                    if role_name not in roles_to_group:
+                        continue
+                    mapped_group = roles_to_group[role_name]
+                    try:
+                        group_id = int(mapped_group)
+                        if group_id in group_id_set:
+                            new_user_group.append(group_id)
+                    except (ValueError, TypeError):
+                        if mapped_group in group_name_to_id:
+                            new_user_group.append(group_name_to_id[mapped_group])
             if not new_user_group:
                 return response_error("User role not in IRIS", 403)
             update_user_groups(user.id, new_user_group)
