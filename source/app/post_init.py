@@ -1390,6 +1390,9 @@ class PostInit:
 
                 self._logger.info('Running DB migration')
 
+                db.session.close()
+                db.engine.dispose()
+
                 alembic_cfg = Config(file_='app/alembic.ini')
                 alembic_cfg.set_main_option('sqlalchemy.url', self._configuration['SQLALCHEMY_DATABASE_URI'])
                 command.upgrade(alembic_cfg, 'head')

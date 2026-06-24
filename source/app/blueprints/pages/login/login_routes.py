@@ -346,14 +346,33 @@ if is_authentication_oidc():
         if usergroup_field is not None and not user_group:
             return response_error("Required user group information missing in OIDC response", 403)
         if user_group:
+            groups_list = get_groups_list()
+            group_name_to_id = {
+                group.group_name: group.group_id for group in groups_list
+            }
+
+            group_id_set = {g.group_id for g in groups_list}
+
             if not userroles_mapping_field:
-                groups_list = get_groups_list()
-                group_name_to_id = {
-                    group.group_name: group.group_id for group in groups_list
-                }
+                new_user_group = [
+                    group_name_to_id[group_name]
+                    for group_name in user_group
+                    if group_name in group_name_to_id
+                ]
             else:
-                group_name_to_id = json.loads(userroles_mapping_field)
-            new_user_group = [group_name_to_id[group_name] for group_name in user_group if group_name in group_name_to_id]
+                roles_to_group = json.loads(userroles_mapping_field)
+                new_user_group = []
+                for role_name in user_group:
+                    if role_name not in roles_to_group:
+                        continue
+                    mapped_group = roles_to_group[role_name]
+                    try:
+                        group_id = int(mapped_group)
+                        if group_id in group_id_set:
+                            new_user_group.append(group_id)
+                    except (ValueError, TypeError):
+                        if mapped_group in group_name_to_id:
+                            new_user_group.append(group_name_to_id[mapped_group])
             if not new_user_group:
                 return response_error("User role not in IRIS", 403)
             update_user_groups(user.id, new_user_group)
