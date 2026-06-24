@@ -1196,7 +1196,7 @@ class PostInit:
             if not is_ready:
                 errors = ','.join(logs)
                 self._logger.info(f'Attempted to initiate {module_name}. Got {errors}')
-                return
+                continue
 
             module, logs = register_module(module_name)
             if module is None:

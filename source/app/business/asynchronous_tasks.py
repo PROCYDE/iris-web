@@ -132,6 +132,11 @@ def asynchronous_tasks_search(count):
                 success = result.is_success()
             except:
                 success = None
+        elif isinstance(result, dict):
+            # task_hook_wrapper returns a dict (not an IIStatus) for JSON
+            # serialization compatibility with Celery's result backend.
+            # The dict mirrors IIStatus fields: code < 0xFF00 means success.
+            success = result.get('code', 0xFFFF) < 0xFF00
         else:
             success = None
 
