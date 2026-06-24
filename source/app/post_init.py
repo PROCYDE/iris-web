@@ -1187,7 +1187,7 @@ class PostInit:
 
     def _register_default_modules(self):
         modules = ['iris_vt_module', 'iris_misp_module', 'iris_check_module',
-                   'iris_webhooks_module', 'iris_intelowl_module']
+                   'iris_webhooks_module']
 
         for module_name in modules:
             class_, _ = instantiate_module_from_name(module_name)
