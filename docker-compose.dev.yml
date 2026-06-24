@@ -83,8 +83,8 @@ services:
     healthcheck:
       test: pgrep -f 'celery.*worker' || exit 1
       start_period: 60s
-      interval: 30s
-      retries: 3
+      interval: 1s
+      retries: 120
 
   nginx:
     extends:
