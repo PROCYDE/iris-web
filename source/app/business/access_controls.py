@@ -27,6 +27,7 @@ from app.logger import logger
 from app.models.authorization import UserCaseAccess
 from app.models.authorization import ac_has_permission_server_administrator
 from app.models.authorization import CaseAccessLevel
+from app.models.authorization import Permissions
 from app.models.authorization import ac_flag_match_mask
 
 
@@ -74,6 +75,10 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
     if the user has access, returns the access level of the user to the case
     Returns None otherwise
     """
+    # Skip if no case ID is provided (e.g., on pages without case context)
+    if cid is None:
+        return None
+    
     access_level = get_case_effective_access(user_id, cid)
 
     if not access_level:
@@ -97,11 +102,20 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
 
 def access_controls_user_has_customer_access(
     user,
-    permissions,
-    customer_identifier,
+    permissions_or_customer_identifier,
+    customer_identifier=None,
     fallback_customer_access=None
 ):
-    if ac_has_permission_server_administrator(permissions):
+    # Backward compatibility:
+    # - old style: access_controls_user_has_customer_access(user, customer_identifier)
+    # - new style: access_controls_user_has_customer_access(user, permissions, customer_identifier, fallback)
+    if customer_identifier is None:
+        permissions = None
+        customer_identifier = permissions_or_customer_identifier
+    else:
+        permissions = permissions_or_customer_identifier
+
+    if permissions is not None and ac_flag_match_mask(permissions, Permissions.server_administrator.value):
         return True
 
     user_id = getattr(user, 'id', None)

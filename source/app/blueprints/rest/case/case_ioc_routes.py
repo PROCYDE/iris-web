@@ -77,7 +77,7 @@ def case_list_ioc(caseid):
 
         # Get links of the IoCs seen in other cases
         user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
-        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations, caseid)
 
         out['link'] = [row._asdict() for row in ial]
         # Legacy, must be changed next version
@@ -289,7 +289,7 @@ def case_comment_ioc_add(cur_id, caseid):
         comment_schema = CommentSchema()
 
         comment = comment_schema.load(request.get_json())
-        comment.comment_case_id = ioc.case_id
+        comment.comment_case_id = caseid
         comment.comment_user_id = iris_current_user.id
         comment.comment_date = datetime.now()
         comment.comment_update_date = datetime.now()
@@ -304,9 +304,9 @@ def case_comment_ioc_add(cur_id, caseid):
             'comment': comment_schema.dump(comment),
             'ioc': IocSchema().dump(ioc)
         }
-        call_modules_hook('on_postload_ioc_commented', hook_data, caseid=ioc.case_id)
+        call_modules_hook('on_postload_ioc_commented', hook_data, caseid=caseid)
 
-        track_activity(f'ioc "{ioc.ioc_value}" commented', caseid=ioc.case_id)
+        track_activity(f'ioc "{ioc.ioc_value}" commented', caseid=caseid)
         return response_success('IOC commented', data=comment_schema.dump(comment))
 
     except marshmallow.exceptions.ValidationError as e:

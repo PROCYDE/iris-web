@@ -65,12 +65,70 @@ class CaseTemplate(db.Model):
     tags = Column(JSON, nullable=True)
     tasks = Column(JSON, nullable=True)
     note_directories = Column(JSON, nullable=True)
+    actions = Column(JSON, nullable=True, default=None)
+    triggers = Column(JSON, nullable=True)
+    input_params = Column(JSON, nullable=True)
     classification = Column(String, nullable=True)
 
     created_by_user = relationship('User')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def update_from_dict(self, data: dict):
+        for field, value in data.items():
+            setattr(self, field, value)
+
+
+class TaskResponse(db.Model):
+    __tablename__ = 'task_response'
+
+    id = Column(Integer, primary_key=True)
+    created_by_user_id = Column(Integer, db.ForeignKey('user.id'))
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+
+    task = Column(Integer, db.ForeignKey('case_tasks.id'))
+    action = Column(Integer)
+    body = Column(JSON, nullable=True)
+    execution_time = Column(DateTime, server_default=func.now())
+
+    created_by_user = relationship('User')
+
+
+class CaseResponse(db.Model):
+    __tablename__ = 'case_response'
+
+    id = Column(Integer, primary_key=True)
+    created_by_user_id = Column(Integer, db.ForeignKey('user.id'))
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+
+    case = Column(Integer)
+    trigger = Column(Integer)
+    body = Column(JSON, nullable=True)
+    execution_time = Column(DateTime, server_default=func.now())
+
+    created_by_user = relationship('User')
+
+
+class Webhook(db.Model):
+    __tablename__ = 'webhook'
+
+    id = Column(BigInteger, primary_key=True)
+    name = Column(Text, nullable=False)
+    header_auth = Column(JSON, nullable=True)
+    url = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+    payload_schema = Column(JSON, nullable=True)
+    summary = Column(Text, nullable=True)
+    tags = Column(JSON, nullable=True)
+    title_prefix = Column(Text, nullable=True)
+    classification = Column(Text, nullable=True)
+    created_by_user_id = Column(ForeignKey('user.id'), nullable=False)
+
+    created_by_user = relationship('User')
 
     def update_from_dict(self, data: dict):
         for field, value in data.items():
@@ -116,6 +174,83 @@ class CaseEventsIoc(db.Model):
     case_id = Column(ForeignKey('cases.case_id'))
 
     event = relationship('CasesEvent')
+    ioc = relationship('Ioc')
+    case = relationship('Cases')
+
+
+class CaseEventsArtifact(db.Model):
+    __tablename__ = 'case_events_artifact'
+
+    id = Column(BigInteger, primary_key=True)
+    event_id = Column(ForeignKey('cases_events.event_id'))
+    artifact_id = Column(ForeignKey('artifact.artifact_id'))
+    case_id = Column(ForeignKey('cases.case_id'))
+
+    event = relationship('CasesEvent')
+    artifact = relationship('Artifact')
+    case = relationship('Cases')
+
+
+class Artifact(db.Model):
+    __tablename__ = 'artifact'
+
+    artifact_id = Column(BigInteger, primary_key=True)
+    artifact_uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, server_default=text("gen_random_uuid()"), nullable=False)
+    artifact_type_id = Column(ForeignKey('ioc_type.type_id'))
+    artifact_value = Column(Text)
+    artifact_description = Column(Text)
+    artifact_tags = Column(String(512))
+    artifact_misp = Column(Text)
+    artifact_tlp_id = Column(ForeignKey('tlp.tlp_id'))
+    user_id = Column(ForeignKey('user.id'))
+    custom_attributes = Column(JSON)
+    modification_history = Column(JSON)
+
+    user = relationship('User')
+    tlp = relationship('Tlp')
+    artifact_type = relationship('IocType')
+
+
+class ArtifactLink(db.Model):
+    __tablename__ = 'artifact_link'
+
+    id = Column(BigInteger, primary_key=True)
+    case_id = Column(ForeignKey('cases.case_id'))
+    artifact_id = Column(ForeignKey('artifact.artifact_id'))
+
+    case = relationship('Cases')
+    artifact = relationship('Artifact')
+
+
+class ArtifactAssetLink(db.Model):
+    __tablename__ = 'artifact_asset_link'
+
+    id = Column(BigInteger, primary_key=True)
+    artifact_id = Column(ForeignKey('artifact.artifact_id'))
+    asset_id = Column(ForeignKey('case_assets.asset_id'))
+
+    artifact = relationship('Artifact')
+    asset = relationship('CaseAssets')
+
+
+class ArtifactComments(db.Model):
+    __tablename__ = 'artifact_comments'
+
+    id = Column(BigInteger, primary_key=True)
+    comment_id = Column(ForeignKey('comments.comment_id'))
+    comment_artifact_id = Column(ForeignKey('artifact.artifact_id'))
+
+    comment = relationship('Comments')
+    artifact = relationship('Artifact')
+
+
+class IocLink(db.Model):
+    __tablename__ = 'ioc_link'
+
+    id = Column('ioc_link_id', BigInteger, primary_key=True)
+    ioc_id = Column(ForeignKey('ioc.ioc_id'))
+    case_id = Column(ForeignKey('cases.case_id'))
+
     ioc = relationship('Ioc')
     case = relationship('Cases')
 
@@ -665,3 +800,9 @@ def create_safe_attr(session, attribute_display_name, attribute_description, att
     instance.attribute_content = attribute_content
     session.add(instance)
     session.commit()
+
+
+# Compatibility re-exports for modules still importing these symbols from app.models.models.
+from app.models.comments import Comments
+from app.models.iocs import Ioc
+from app.models.iocs import Tlp

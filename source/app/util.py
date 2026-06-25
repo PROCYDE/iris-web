@@ -118,3 +118,9 @@ def hmac_verify(signature_enc, data):
         return True
     except InvalidSignature:
         return False
+
+
+def get_case_access(request_data, access_level, from_api=False, no_cid_required=False):
+    from app.blueprints.access_controls import _get_case_access
+
+    return _get_case_access(request_data, access_level, no_cid_required=no_cid_required)

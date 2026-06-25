@@ -17,27 +17,28 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import subprocess
+from pathlib import Path
 
 
 class Docker:
 
     def __init__(self, docker_compose_path, docker_compose_file):
-        self._docker_compose_path = docker_compose_path
+        self._docker_compose_path = Path(docker_compose_path).resolve()
         self._docker_compose_file = docker_compose_file
 
     def compose_up(self, service=None):
         command = ['docker', 'compose', '-f', self._docker_compose_file, 'up', '--detach', '--wait']
         if service:
             command = command + [service]
-        subprocess.check_call(command, cwd=self._docker_compose_path)
+        subprocess.check_call(command, cwd=str(self._docker_compose_path))
 
     def compose_down(self):
         subprocess.check_call(['docker', 'compose', '-f', self._docker_compose_file, 'down'],
-                              cwd=self._docker_compose_path)
+                              cwd=str(self._docker_compose_path))
 
     def extract_logs(self, service):
         return subprocess.check_output(['docker', 'compose', '-f', self._docker_compose_file, 'logs', '--no-color', service],
-                                       cwd=self._docker_compose_path, universal_newlines=True)
+                                       cwd=str(self._docker_compose_path), universal_newlines=True)
 
     @staticmethod
     def exec(container, stdin, command):
@@ -45,4 +46,5 @@ class Docker:
 
     @staticmethod
     def volume_rm(volume_name):
-        subprocess.check_call(['docker', 'volume', 'rm', volume_name])
+        # Attempt to remove volume, but don't fail if it doesn't exist
+        subprocess.call(['docker', 'volume', 'rm', volume_name])

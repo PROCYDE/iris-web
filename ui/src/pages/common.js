@@ -357,7 +357,6 @@ function delete_request_api(uri, data, propagate_api_error, beforeSend_fn) {
         url: uri + case_param(),
         type: 'DELETE',
         data: data,
-        dataType: "json",
         beforeSend: function(jqXHR, settings) {
              sendBefore(beforeSend_fn, settings, jqXHR);
         },
@@ -520,7 +519,7 @@ function notify_redirect() {
 
 function case_param() {
     var params = {
-        cid: get_caseid
+        cid: get_caseid()
     }
     return '?'+ $.param(params);
 }
@@ -976,6 +975,26 @@ function createSanitizeExtensionForImg() {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = match;
 
+            const img = tempDiv.querySelector('img');
+            if (img) {
+                const src = img.getAttribute('src');
+                if (src && src.startsWith('/datastore/file/view/')) {
+                    try {
+                        const parsed = new URL(src, window.location.origin);
+                        const srcCid = parsed.searchParams.get('cid');
+                        const currentCid = get_caseid();
+
+                        if (srcCid && currentCid && String(srcCid) !== String(currentCid)) {
+                            img.setAttribute('src', 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=');
+                            img.setAttribute('alt', 'Image unavailable (stale case reference)');
+                            img.setAttribute('title', 'Image unavailable (stale case reference)');
+                        }
+                    } catch (e) {
+                        // Keep original src when URL parsing fails.
+                    }
+                }
+            }
+
             tempDiv.querySelectorAll('*').forEach(el => {
                 [...el.attributes].forEach(attr => {
                     if (attr.name.startsWith('on')) {
@@ -1002,7 +1021,7 @@ function get_showdown_convert() {
         strikethrough: true,
         tasklists: true,
         ghCodeBlocks: true,
-        backslashEscapesHTMLTags: true,
+        backslashEscapesHTMLTags: false,
         splitAdjacentBlockquotes: true,
         extensions: [createSanitizeExtensionForImg, 'bootstrap-tables']
     });
@@ -1013,9 +1032,10 @@ function do_md_filter_xss(html) {
         stripIgnoreTag: false,
         whiteList: {
                 i: ['class', "title"],
-                a: ['href', 'title', 'target'],
+                a: ['href', 'title', 'target', 'onclick', 'style'],
                 img: ['src', 'alt', 'title', 'width', 'height'],
-                div: ['class'],
+                iframe: ['src', 'width', 'height', 'style', 'title', 'frameborder', 'allow', 'id'],
+                div: ['class', 'style'],
                 p: [],
                 hr: [],
                 h1: [], h2: [], h3: [], h4: [], h5: [], h6: [],
@@ -1403,12 +1423,50 @@ function load_add_case() {
              ajax_notify_error(xhr, '/case/add');
              return false;
         }
-        $('#case_customer_id').selectpicker({
+        
+        // Check if we should auto-select the customer (only one available)
+        const $customerSelect = $('#case_customer_id');
+        const autoSelect = $customerSelect.attr('data-auto-select');
+        const shouldAutoSelect = (autoSelect === 'true');
+        
+        // If only one customer exists, pre-select it before initializing selectpicker
+        if (shouldAutoSelect) {
+            const options = $customerSelect.find('option');
+            if (options.length === 1) {
+                const customerValue = options.eq(0).val();
+                if (customerValue) {
+                    // Set value on the underlying select element
+                    $customerSelect.val(customerValue);
+                    // Mark option as selected
+                    options.eq(0).prop('selected', true);
+                }
+            }
+        }
+        
+        // Initialize selectpicker
+        $customerSelect.selectpicker({
             liveSearch: true,
             title: "Select customer *",
             style: "btn-outline-white",
             size: 8
         });
+        
+        // Double-check after initialization with a small delay
+        if (shouldAutoSelect) {
+            setTimeout(function() {
+                const options = $customerSelect.find('option');
+                const currentVal = $customerSelect.val();
+                
+                if (options.length === 1 && !currentVal) {
+                    const customerValue = options.eq(0).val();
+                    if (customerValue) {
+                        $customerSelect.val(customerValue);
+                        $customerSelect.selectpicker('refresh');
+                    }
+                }
+            }, 100);
+        }
+        
         $('#case_template_id').selectpicker({
             liveSearch: true,
             title: "Select case template",

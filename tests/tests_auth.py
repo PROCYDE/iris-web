@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from unittest import TestCase, skip
+from unittest import TestCase
 from uuid import uuid4
 import requests
 from urllib import parse
@@ -42,7 +42,8 @@ class TestsAuth(TestCase):
         response = requests.post(url,
                                  allow_redirects=False,
                                  headers={'Content-Type': 'application/x-www-form-urlencoded'},
-                                 data={'username': user_name, 'password': password})
+                                 data={'username': user_name, 'password': password},
+                                 verify=False)
         self.assertEqual('/dashboard?cid=1', response.headers['Location'])
 
     def test_login_should_not_redirect_to_external_site_open_redirect(self):
@@ -55,7 +56,8 @@ class TestsAuth(TestCase):
                                  allow_redirects=False,
                                  headers={'Content-Type': 'application/x-www-form-urlencoded'},
                                  data={'username': user_name, 'password': password},
-                                 params={'next': 'https:///www.google.com'})
+                                 params={'next': 'https:///www.google.com'},
+                                 verify=False)
         self.assertEqual('/dashboard?cid=1', response.headers['Location'])
 
     def test_login_should_return_authentication_cookie(self):
@@ -75,18 +77,20 @@ class TestsAuth(TestCase):
         cookies = {
             name: value
         }
-        response = requests.get(url, cookies=cookies)
+        response = requests.get(url, cookies=cookies, verify=False)
         self.assertEqual(200, response.status_code)
 
-    @skip
     def test_logout_should_forbid_later_requests_from_the_same_user(self):
         password = 'aA.1234567890'
         user = self._subject.create_user(f'user{uuid4()}', password)
-        response = user.login(password)
-        name, value = response.headers['Set-Cookie'].split('=', 1)
-        cookies = {name: value}
+        session = requests.Session()
+        session.verify = False
+        session.post(
+            parse.urljoin(API_URL, '/api/v2/auth/login'),
+            json={'username': user._login, 'password': password}
+        )
         url = parse.urljoin(API_URL, '/api/v2/auth/logout')
-        requests.get(url, cookies=cookies)
+        session.post(url, allow_redirects=False)
         url = parse.urljoin(API_URL, '/api/v2/cases')
-        response = requests.get(url, cookies=cookies)
+        response = session.get(url)
         self.assertEqual(401, response.status_code)
