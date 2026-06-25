@@ -135,10 +135,20 @@
                                         </div>
                                     </div>
                                     <div class="form-group col-12 col-md-6">
-                                        <label for="event_assets">Link to IOCs
+                                        <label for="event_iocs">Link to IOCs
                                         </label>
                                         <div class="select2-input ml-12" data-select2-id="6">
                                             <select id="event_iocs" name="event_iocs" class="form-control select2-hidden-accessible ml-12" multiple="" data-select2-id="event_iocs" tabindex="-1" aria-hidden="true" style="width: 100%">
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="form-group col-12 col-md-6">
+                                        <label for="event_artifacts">Link to artifacts
+                                        </label>
+                                        <div class="select2-input ml-12" data-select2-id="7">
+                                            <select id="event_artifacts" name="event_artifacts" class="form-control select2-hidden-accessible ml-12" multiple="" data-select2-id="event_artifacts" tabindex="-1" aria-hidden="true" style="width: 100%">
                                             </select>
                                         </div>
                                     </div>
@@ -296,6 +306,20 @@ $('#event_category_id').selectpicker({
     </script>
 {% endif %}
 
+{% if artifacts %}
+    <script>
+        var data = [
+            {% for e in artifacts %}
+                {
+                    id: {{ e.artifact_id }},
+                    text: {{ e.artifact_name| tojson  }}
+                },
+            {% endfor %}
+        ];
+        $('#event_artifacts').select2({ data: data });
+    </script>
+{% endif %}
+
 {% if category %}
     <script>
         $('#event_category_id').val([
@@ -325,5 +349,14 @@ $('#event_category_id').selectpicker({
             {% for ioc in iocs_prefill %} {{ ioc }}, {% endfor %}
         ]);
         $('#event_iocs').trigger('change');
+    </script>
+{% endif %}
+
+{% if artifacts_prefill %}
+    <script>
+        $('#event_artifacts').val([
+            {% for artifact in artifacts_prefill %} {{ artifact }}, {% endfor %}
+        ]);
+        $('#event_artifacts').trigger('change');
     </script>
 {% endif %}

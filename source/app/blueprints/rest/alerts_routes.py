@@ -26,6 +26,7 @@ from werkzeug import Response
 
 from app.db import db
 from app.blueprints.rest.endpoints import endpoint_deprecated
+from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.iris_user import iris_current_user

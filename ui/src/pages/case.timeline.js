@@ -80,6 +80,7 @@ function add_event(parent_event_id = null) {
             data_sent['event_tags'] = $('#event_tags').val();
             data_sent['event_assets'] = $('#event_assets').val();
             data_sent['event_iocs'] = $('#event_iocs').val();
+            data_sent['event_artifacts'] = $('#event_artifacts').val();
             data_sent['event_tz'] = $('#event_tz').val();
             data_sent['event_content'] = g_event_desc_editor.getValue();
             data_sent['parent_event_id'] = $('#parent_event_id').val() || null;
@@ -151,6 +152,7 @@ function update_event_ext(event_id, do_close) {
     data_sent['event_tags'] = $('#event_tags').val();
     data_sent['event_assets'] = $('#event_assets').val();
     data_sent['event_iocs'] = $('#event_iocs').val();
+    data_sent['event_artifacts'] = $('#event_artifacts').val();
     data_sent['event_tz'] = $('#event_tz').val();
     data_sent['event_content'] = g_event_desc_editor.getValue();
     data_sent['parent_event_id'] = $('#parent_event_id').val() || null;

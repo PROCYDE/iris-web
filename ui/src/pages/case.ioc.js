@@ -397,11 +397,28 @@ $(document).ready(function(){
           { "data": "link",
             "render": function (data, type, row, meta) {
               if (type === 'display' && data != null) {
-                  links = "";
-                  for (link in data) {
-                    links += '<span data-toggle="popover" style="cursor: pointer;" data-trigger="hover" class="text-primary mr-3" href="#" title="Case info" data-content="' + sanitizeHTML(data[link]['case_name']) +
-                     ' (' + sanitizeHTML(data[link]['client_name']) + ')' + '">#' + data[link]['case_id'] + '</span>'
+                  const maxDisplay = 50;
+                  const totalCases = data.length;
+                  let links = "";
+                  
+                  // Display first 50 cases (multi-line)
+                  const casesToShow = data.slice(0, maxDisplay);
+                  for (let i = 0; i < casesToShow.length; i++) {
+                    const link = casesToShow[i];
+                    links += '<span data-toggle="popover" style="cursor: pointer;" data-trigger="hover" class="text-primary mr-2" href="#" title="Case info" data-content="' + sanitizeHTML(link['case_name']) +
+                     ' (' + sanitizeHTML(link['client_name']) + ')' + '">#' + link['case_id'] + '</span>';
+                    
+                    // Add line break every 10 cases for better readability
+                    if ((i + 1) % 10 === 0 && i < casesToShow.length - 1) {
+                      links += '<br/>';
+                    }
                   }
+                  
+                  // Add "...more" link if there are more than 50 cases
+                  if (totalCases > maxDisplay) {
+                    links += '<br/><a href="javascript:void(0);" class="badge badge-info mt-1 show-all-linked-cases" data-ioc-id="' + row['ioc_id'] + '" data-total="' + totalCases + '">...more (' + (totalCases - maxDisplay) + ' additional)</a>';
+                  }
+                  
                   return links;
               } else if (type === 'export' && data != null) {
                   return data.map(ds => sanitizeHTML(ds['case_name'])).join(',');
@@ -468,4 +485,180 @@ $(document).ready(function(){
     if (shared_id) {
         edit_ioc(shared_id);
     }
+
+    // Event handler for "...more" link to show all linked cases
+    $('#ioc_table').on('click', '.show-all-linked-cases', function(e) {
+        e.preventDefault();
+        const iocId = $(this).data('ioc-id');
+        const total = $(this).data('total');
+        show_linked_cases_modal(iocId, total);
+    });
 });
+
+function show_linked_cases_modal(iocId, totalCases) {
+    const modalHtml = `
+        <div class="modal fade" id="modal_linked_cases" tabindex="-1" role="dialog" aria-labelledby="modal_linked_cases_label" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modal_linked_cases_label">Linked Cases for IOC #${sanitizeHTML(iocId)} (${totalCases} total)</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="linked_cases_list" style="max-height: 500px; overflow-y: auto;">
+                            <div class="text-center">
+                                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                <p>Loading linked cases...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <nav aria-label="Linked cases pagination">
+                            <ul class="pagination pagination-sm mb-0" id="linked_cases_pagination">
+                            </ul>
+                        </nav>
+                        <button type="button" class="btn btn-secondary ml-2" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#modal_linked_cases').remove();
+    
+    // Add modal to body
+    $('body').append(modalHtml);
+    
+    // Show modal
+    $('#modal_linked_cases').modal('show');
+    
+    // Load first page
+    load_linked_cases_page(iocId, 1);
+}
+
+function load_linked_cases_page(iocId, page) {
+    const perPage = 50;
+    
+    $.ajax({
+        url: `/api/v2/cases/${get_caseid()}/iocs/${iocId}/linked-cases`,
+        type: 'GET',
+        data: {
+            page: page,
+            per_page: perPage
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 'success' && response.data) {
+                render_linked_cases_list(response.data.cases);
+                render_pagination(iocId, response.data);
+            } else {
+                $('#linked_cases_list').html('<div class="alert alert-danger">Failed to load linked cases</div>');
+            }
+        },
+        error: function(xhr, status, error) {
+            let errorMsg = error;
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMsg = xhr.responseJSON.message;
+            }
+            $('#linked_cases_list').html('<div class="alert alert-danger">Error loading linked cases: ' + sanitizeHTML(errorMsg) + '</div>');
+        }
+    });
+}
+
+function render_linked_cases_list(cases) {
+    let html = '<div class="list-group">';
+    
+    if (cases.length === 0) {
+        html += '<div class="list-group-item">No other linked cases found</div>';
+    } else {
+        cases.forEach(function(caseItem) {
+            const caseUrl = `/case?cid=${caseItem.case_id}`;
+            const openDate = caseItem.open_date ? new Date(caseItem.open_date).toLocaleDateString() : 'N/A';
+            
+            html += `
+                <a href="${caseUrl}" class="list-group-item list-group-item-action" target="_blank">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">
+                            <span class="badge badge-primary">#${sanitizeHTML(caseItem.case_id)}</span>
+                            ${sanitizeHTML(caseItem.case_name)}
+                        </h6>
+                        <small class="text-muted">${sanitizeHTML(openDate)}</small>
+                    </div>
+                    <small class="text-muted">Customer: ${sanitizeHTML(caseItem.client_name)}</small>
+                </a>
+            `;
+        });
+    }
+    
+    html += '</div>';
+    $('#linked_cases_list').html(html);
+}
+
+function render_pagination(iocId, data) {
+    const { page, total_pages } = data;
+    let html = '';
+    
+    if (total_pages <= 1) {
+        $('#linked_cases_pagination').html('');
+        return;
+    }
+    
+    // Previous button
+    if (page > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" data-page="${page - 1}" data-ioc-id="${iocId}">Previous</a></li>`;
+    } else {
+        html += '<li class="page-item disabled"><span class="page-link">Previous</span></li>';
+    }
+    
+    // Page numbers
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(total_pages, startPage + maxPagesToShow - 1);
+    
+    // Adjust start if we're near the end
+    if (endPage - startPage < maxPagesToShow - 1) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" data-page="1" data-ioc-id="${iocId}">1</a></li>`;
+        if (startPage > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === page) {
+            html += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+        } else {
+            html += `<li class="page-item"><a class="page-link" href="#" data-page="${i}" data-ioc-id="${iocId}">${i}</a></li>`;
+        }
+    }
+    
+    if (endPage < total_pages) {
+        if (endPage < total_pages - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" data-page="${total_pages}" data-ioc-id="${iocId}">${total_pages}</a></li>`;
+    }
+    
+    // Next button
+    if (page < total_pages) {
+        html += `<li class="page-item"><a class="page-link" href="#" data-page="${page + 1}" data-ioc-id="${iocId}">Next</a></li>`;
+    } else {
+        html += '<li class="page-item disabled"><span class="page-link">Next</span></li>';
+    }
+    
+    $('#linked_cases_pagination').html(html);
+    
+    // Bind click events to pagination links
+    $('#linked_cases_pagination a').on('click', function(e) {
+        e.preventDefault();
+        const pageNum = $(this).data('page');
+        const iocId = $(this).data('ioc-id');
+        load_linked_cases_page(iocId, pageNum);
+    });
+}
