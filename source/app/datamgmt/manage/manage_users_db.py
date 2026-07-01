@@ -111,7 +111,16 @@ def update_user_groups(user_id, groups):
     ).filter(UserGroup.user_id == user_id).all()
 
     set_cur_groups = set([grp[0] for grp in cur_groups])
-    set_new_groups = set(int(grp) for grp in groups)
+    resolved = []
+    for grp in groups:
+        try:
+            resolved.append(int(grp))
+        except (ValueError, TypeError):
+            from app.datamgmt.manage.manage_groups_db import get_group_by_name
+            group = get_group_by_name(grp)
+            if group:
+                resolved.append(group.group_id)
+    set_new_groups = set(resolved)
 
     groups_to_add = set_new_groups - set_cur_groups
     groups_to_remove = set_cur_groups - set_new_groups
