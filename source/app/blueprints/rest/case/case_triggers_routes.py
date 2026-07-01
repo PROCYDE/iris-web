@@ -44,7 +44,6 @@ def case_triggers(caseid):
 
 @case_triggers_blueprint.route('/case/triggers-list/<int:case_id>', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
-@ac_api_requires()
 def case_triggers_list(case_id, caseid):
     # case_id path param should match resolved caseid
     if case_id != caseid:
@@ -70,7 +69,6 @@ def case_triggers_list(case_id, caseid):
 
 @case_triggers_blueprint.route('/case/task/action_responses/<int:task_id>', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
-@ac_api_requires()
 def case_task_action_responses(task_id, caseid):
     """Compatibility endpoint used by the task modal action table."""
     task = get_task(task_id=task_id)
