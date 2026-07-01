@@ -104,6 +104,11 @@ from app.models.authorization import User
 
 
 def register_blueprints(app):
+    @app.route('/health')
+    def health():
+        from flask import Response
+        return Response(status=200)
+
     app.register_blueprint(graphql_blueprint)
     app.register_blueprint(dashboard_blueprint)
     app.register_blueprint(dashboard_rest_blueprint)
