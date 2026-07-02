@@ -840,6 +840,7 @@ def create_safe_case_states():
     create_safe(db.session, CaseState, state_name='Post-Incident', state_description="Post-incident phase")
     create_safe(db.session, CaseState, state_name='Reporting', state_description="Reporting is in progress")
     create_safe(db.session, CaseState, state_name='Closed', state_description="Case is closed", protected=True)
+    create_safe(db.session, CaseState, state_name='Reopened', state_description="Case has been reopened")
 
 
 def create_safe_review_status():
