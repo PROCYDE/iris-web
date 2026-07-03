@@ -77,14 +77,15 @@ class Events:
             event_category_id = request_data.get('event_category_id')
             event_assets = request_data.get('event_assets')
             event_iocs = request_data.get('event_iocs')
+            event_artifacts = request_data.get('event_artifacts')
             sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
 
-            event = events_create(case_identifier, event, event_category_id, event_assets, event_iocs, sync_iocs_assets)
+            event = events_create(case_identifier, event, event_category_id, event_assets, event_iocs, sync_iocs_assets, event_artifacts)
             result = self._schema.dump(event)
             # event_category_id is already set by events_create, but populate linked items
             result['event_assets'] = event_assets
             result['event_iocs'] = event_iocs
-            result['event_artifacts'] = request_data.get('event_artifacts', [])
+            result['event_artifacts'] = get_event_artifacts_ids(event.event_id, case_identifier)
             notify(case_identifier, 'events', 'updated', event.event_id, object_data=result)
 
             return response_api_created(result)
@@ -131,9 +132,10 @@ class Events:
             event_category_id = request_data.get('event_category_id')
             event_assets = request_data.get('event_assets')
             event_iocs = request_data.get('event_iocs')
+            event_artifacts = request_data.get('event_artifacts')
             event_sync_iocs_assets = request_data.get('event_sync_iocs_assets')
 
-            event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets)
+            event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets, event_artifacts)
 
             result = self._schema.dump(event)
             # Populate fields from relationships

@@ -35,6 +35,7 @@ from app.models.models import EventCategory
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType
+from app.models.models import Artifact
 from app.models.authorization import User
 
 from app.datamgmt.case.case_artifacts_db import get_artifacts
@@ -260,6 +261,37 @@ def get_event_iocs_ids(event_id, caseid):
     ).all()
 
     return [x[0] for x in iocs_list]
+
+
+def update_event_artifacts(event_id, caseid, artifacts_list):
+
+    CaseEventsArtifact.query.filter(
+        CaseEventsArtifact.event_id == event_id,
+        CaseEventsArtifact.case_id == caseid
+    ).delete()
+
+    valid_artifacts = Artifact.query.with_entities(
+        Artifact.artifact_id
+    ).filter(
+        Artifact.artifact_id.in_(artifacts_list),
+        Artifact.case_id == caseid
+    ).all()
+
+    for artifact in valid_artifacts:
+        try:
+
+            cea = CaseEventsArtifact()
+            cea.artifact_id = int(artifact.artifact_id)
+            cea.event_id = event_id
+            cea.case_id = caseid
+
+            db.session.add(cea)
+
+        except Exception as e:
+            return False, str(e)
+
+    db.session.commit()
+    return True, ''
 
 
 def get_event_artifacts_ids(event_id, caseid):

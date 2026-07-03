@@ -137,6 +137,7 @@ def execute_and_save_trigger(trigger, case_id):
         if not webhook.url:
             raise ValueError(f'Trigger execution failed: URL is missing in webhook with id {webhook_id}.')
 
+        trigger['case_id'] = case_id
         response = requests.post(webhook.url, json=trigger, verify=False)
         if response.status_code != 200:
             raise ValueError(

@@ -693,8 +693,9 @@ def case_edit_event(cur_id, caseid):
         event_assets = request_data.get('event_assets')
         event_iocs = request_data.get('event_iocs')
         event_sync_iocs_assets = request_data.get('event_sync_iocs_assets')
+        event_artifacts = request_data.get('event_artifacts')
 
-        event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets)
+        event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets, event_artifacts)
 
         event_schema = EventSchema()
         event_dump = event_schema.dump(event)
@@ -726,8 +727,9 @@ def case_add_event(caseid):
         event_assets = request_data.get('event_assets')
         event_iocs = request_data.get('event_iocs')
         sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
+        event_artifacts = request_data.get('event_artifacts')
 
-        event = events_create(caseid, event, event_category_id, event_assets, event_iocs, sync_iocs_assets)
+        event = events_create(caseid, event, event_category_id, event_assets, event_iocs, sync_iocs_assets, event_artifacts)
         event_schema = EventSchema()
         event_dump = event_schema.dump(event)
         collab_notify(case_id=caseid,
