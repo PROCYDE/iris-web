@@ -111,7 +111,16 @@ def update_user_groups(user_id, groups):
     ).filter(UserGroup.user_id == user_id).all()
 
     set_cur_groups = set([grp[0] for grp in cur_groups])
-    set_new_groups = set(int(grp) for grp in groups)
+    resolved = []
+    for grp in groups:
+        try:
+            resolved.append(int(grp))
+        except (ValueError, TypeError):
+            from app.datamgmt.manage.manage_groups_db import get_group_by_name
+            group = get_group_by_name(grp)
+            if group:
+                resolved.append(group.group_id)
+    set_new_groups = set(resolved)
 
     groups_to_add = set_new_groups - set_cur_groups
     groups_to_remove = set_cur_groups - set_new_groups
@@ -664,9 +673,14 @@ def update_user(user: User, name: str = None, email: str = None, password: str =
 
 
 def delete_user(user_id):
+    from app.models.models import TaskResponse
+
     # Migrate the user activity to a shadow user
 
     UserActivity.query.filter(UserActivity.user_id == user_id).update({UserActivity.user_id: None})
+
+    # Nullify task response user references before deleting the user
+    TaskResponse.query.filter(TaskResponse.created_by_user_id == user_id).update({TaskResponse.created_by_user_id: None})
 
     UserCaseAccess.query.filter(UserCaseAccess.user_id == user_id).delete()
     UserOrganisation.query.filter(UserOrganisation.user_id == user_id).delete()

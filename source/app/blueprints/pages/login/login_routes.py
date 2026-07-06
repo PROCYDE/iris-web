@@ -330,21 +330,14 @@ if is_authentication_oidc():
                 user_is_service_account=False,
             )
 
-            # Assign new user to the first customer (acting as the default customer)
-            first_customer = Client.query.order_by(Client.client_id).first()
-            if first_customer:
-                add_user_to_customer(user.id, first_customer.client_id)
-                log.info(f'Assigned OIDC user {user_login} to default customer {first_customer.name}')
-            else:
-                log.error(
-                    f'CRITICAL: No customers found in the system. User {user.id} could not be assigned to a default customer.'
-                )
-
         if user and not user.active:
             return response_error("User not active in IRIS", 403)
 
-        if usergroup_field is not None and not user_group:
-            return response_error("Required user group information missing in OIDC response", 403)
+        if user and (not user_group) and userroles_mapping_field:
+            return response_error(
+                "Required user group information missing in OIDC response", 403
+            )
+
         if user_group:
             groups_list = get_groups_list()
             group_name_to_id = {
@@ -354,27 +347,17 @@ if is_authentication_oidc():
             group_id_set = {g.group_id for g in groups_list}
 
             if not userroles_mapping_field:
-                new_user_group = [
-                    group_name_to_id[group_name]
-                    for group_name in user_group
-                    if group_name in group_name_to_id
-                ]
+                groups_list = get_groups_list()
+                group_name_to_id = {
+                    group.group_name: group.group_id for group in groups_list
+                }
             else:
-                roles_to_group = json.loads(userroles_mapping_field)
-                new_user_group = []
-                for role_name in user_group:
-                    if role_name not in roles_to_group:
-                        continue
-                    mapped_group = roles_to_group[role_name]
-                    try:
-                        group_id = int(mapped_group)
-                        if group_id in group_id_set:
-                            new_user_group.append(group_id)
-                    except (ValueError, TypeError):
-                        if mapped_group in group_name_to_id:
-                            new_user_group.append(group_name_to_id[mapped_group])
-            if not new_user_group:
-                return response_error("User role not in IRIS", 403)
+                group_name_to_id = json.loads(userroles_mapping_field)
+            new_user_group = [
+                group_name_to_id[group_name]
+                for group_name in user_group
+                if group_name in group_name_to_id
+            ]
             update_user_groups(user.id, new_user_group)
 
         return wrap_login_user(user, is_oidc=True)

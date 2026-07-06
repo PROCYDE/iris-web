@@ -840,6 +840,7 @@ def create_safe_case_states():
     create_safe(db.session, CaseState, state_name='Post-Incident', state_description="Post-incident phase")
     create_safe(db.session, CaseState, state_name='Reporting', state_description="Reporting is in progress")
     create_safe(db.session, CaseState, state_name='Closed', state_description="Case is closed", protected=True)
+    create_safe(db.session, CaseState, state_name='Reopened', state_description="Case has been reopened")
 
 
 def create_safe_review_status():
@@ -955,6 +956,9 @@ def create_safe_attributes():
                      attribute_content={})
     create_safe_attr(db.session, attribute_display_name='Customers',
                      attribute_description='Defines default attributes for Customers', attribute_for='client',
+                     attribute_content={})
+    create_safe_attr(db.session, attribute_display_name='Artifacts',
+                     attribute_description='Defines default attributes for Artifacts', attribute_for='artifact',
                      attribute_content={})
 
 
@@ -1437,9 +1441,9 @@ class PostInit:
                 self._logger.info("Creating base analysis status")
                 create_safe_analysis_status()
 
-                if not prevent_objects:
-                    self._logger.info("Creating base case classification")
-                    self._create_safe_classifications()
+                #if not prevent_objects:
+                    #self._logger.info("Creating base case classification")
+                    #self._create_safe_classifications()
 
                 self._logger.info("Creating base tasks status")
                 create_safe_task_status()

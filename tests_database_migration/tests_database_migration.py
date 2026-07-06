@@ -28,7 +28,7 @@ from sqlalchemy import inspect
 from test_harness.docker import Docker
 from test_harness.iris import Iris
 
-_IRIS_PATH = Path('..')
+_IRIS_PATH = Path(__file__).parent.parent
 
 
 class TestsDatabaseMigration(TestCase):

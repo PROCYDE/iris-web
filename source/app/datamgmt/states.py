@@ -137,3 +137,13 @@ def update_notes_state(caseid, userid=None):
 
 def get_notes_state(caseid):
     return get_object_state('notes', caseid=caseid)
+
+
+def update_artifact_state(caseid, userid=None):
+    if not userid:
+        userid = iris_current_user.id
+    return _update_object_state('artifact', caseid, userid)
+
+
+def get_artifact_state(caseid):
+    return get_object_state('artifact', caseid=caseid)

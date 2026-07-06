@@ -22,9 +22,8 @@ from typing import Optional
 from sqlalchemy import desc
 from sqlalchemy import and_
 
-from app.datamgmt.db_operations import db_create
-from app.datamgmt.db_operations import db_delete
-from app.db import db
+from app import db
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.conversions import convert_sort_direction
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.manage.manage_users_db import get_users_list_restricted_from_case
@@ -34,6 +33,7 @@ from app.models.models import TaskAssignee
 from app.models.cases import Cases
 from app.models.comments import Comments, TaskComments
 from app.models.models import TaskStatus
+from app.models.models import TaskResponse
 from app.models.authorization import User
 from app.models.pagination_parameters import PaginationParameters
 

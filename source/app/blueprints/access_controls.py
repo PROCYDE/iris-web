@@ -49,11 +49,31 @@ from app.business.access_controls import access_controls_user_has_customer_acces
 from app.datamgmt.manage.manage_users_db import get_user
 from app.blueprints.iris_user import iris_current_user
 from app.business.access_controls import ac_fast_check_user_has_case_access
+from app.business.access_controls import access_controls_user_has_customer_access
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.models.authorization import ac_flag_match_mask
 from app.models.authorization import CaseAccessLevel
+
+
+def ac_current_user_has_customer_access(customer_identifier):
+    """
+    Check if the current user has access to a specific customer/organization.
+    This is used as a fallback callback for flexible permission resolution.
+    """
+    if ac_current_user_has_permission(Permissions.server_administrator):
+        return True
+
+    return access_controls_user_has_customer_access(current_user, customer_identifier)
+
+
+def ac_current_user_has_permission(*permissions):
+    """
+    Check if the current user has at least one of the given permissions.
+    Compatibility alias for callers that import this helper from the blueprint module.
+    """
+    return _user_has_at_least_a_required_permission(list(permissions))
 
 
 def _user_has_at_least_a_required_permission(permissions: list[Permissions]):
@@ -78,6 +98,10 @@ def _user_has_at_least_a_required_permission(permissions: list[Permissions]):
             user_permissions = ac_get_effective_permissions_of_user(user)
             g.auth_user_permissions = user_permissions  # Cache for this request
 
+        # Administrators are allowed to pass all permission checks.
+        if user_permissions & Permissions.server_administrator.value:
+            return True
+
         for permission in permissions:
             if user_permissions & permission.value:
                 return True
@@ -86,6 +110,10 @@ def _user_has_at_least_a_required_permission(permissions: list[Permissions]):
     # For session-based authentication
     if 'permissions' not in session:
         session['permissions'] = ac_get_effective_permissions_of_user(current_user)
+
+    # Administrators are allowed to pass all permission checks.
+    if session['permissions'] & Permissions.server_administrator.value:
+        return True
 
     for permission in permissions:
         if session['permissions'] & permission.value:
@@ -216,16 +244,17 @@ def _get_case_access(request_data, access_level, no_cid_required=False):
     if ctmp is not None:
         return redir, ctmp, has_access
 
+    # Check if the case exists before checking access
+    if caseid is not None and not get_case(caseid):
+        log.warning('No case found. Using default case')
+        return True, 1, True
+
     eaccess_level = ac_fast_check_user_has_case_access(iris_current_user.id, caseid, access_level)
     if eaccess_level is None and access_level:
         _update_denied_case(caseid)
         return redir, caseid, False
 
     _update_session(caseid, eaccess_level)
-
-    if caseid is not None and not get_case(caseid):
-        log.warning('No case found. Using default case')
-        return True, 1, True
 
     return redir, caseid, True
 
@@ -426,6 +455,14 @@ def ac_socket_requires(*access_level):
 
         return wrap
     return inner_wrap
+
+
+def ac_api_case_requires(*access_level):
+    """
+    Decorator for API endpoints that require case access validation.
+    Alias for ac_requires_case_identifier to maintain compatibility.
+    """
+    return ac_requires_case_identifier(*access_level)
 
 
 def ac_api_return_access_denied(caseid: int = None):

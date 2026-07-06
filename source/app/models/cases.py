@@ -17,6 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import enum
+
+import enum
 import uuid
 from datetime import datetime
 
@@ -39,6 +41,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import backref
 
+from app.db import db
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.states import update_assets_state
@@ -80,6 +83,7 @@ class Cases(db.Model):
     reviewer_id = Column(ForeignKey('user.id'), nullable=True)
     review_status_id = Column(ForeignKey('review_status.id'), nullable=True)
     severity_id = Column(ForeignKey('severities.severity_id'), nullable=True)
+    case_template_id = Column(String(256), nullable=True)
 
     modification_history = Column(JSON)
 
@@ -107,7 +111,8 @@ class Cases(db.Model):
                  custom_attributes=None,
                  classification_id=None,
                  state_id=None,
-                 severity_id=None
+                 severity_id=None,
+                 case_template_id=None
                  ):
         self.name = name[:200] if name else None,
         self.soc_id = soc_id,
@@ -126,6 +131,7 @@ class Cases(db.Model):
         self.classification_id = classification_id
         self.state_id = state_id,
         self.severity_id = severity_id
+        self.case_template_id = case_template_id
 
 
 class CaseTags(db.Model):

@@ -41,6 +41,11 @@ from app.models.models import Tags
 from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
+from app.models.models import CaseEventsArtifact
+from app.models.models import Artifact
+from app.models.models import ArtifactLink
+from app.models.models import ArtifactAssetLink
+from app.models.models import ArtifactComments
 from app.models.evidences import CaseReceivedFile
 from app.models.models import CaseTasks
 from app.models.cases import Cases, CaseStatus, CaseClassification
@@ -49,6 +54,7 @@ from app.models.customers import Client
 from app.models.models import DataStoreFile
 from app.models.models import DataStorePath
 from app.models.models import IocAssetLink
+from app.models.models import IocLink
 from app.models.models import Notes
 from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
@@ -231,7 +237,7 @@ def reopen_case(case_id):
     if res:
         res.close_date = None
 
-        res.state_id = get_case_state_by_name('Open').state_id
+        res.state_id = get_case_state_by_name('Reopened').state_id
 
         db.session.commit()
         return res
@@ -320,22 +326,59 @@ def get_case_details_rt(case_id):
 def _delete_iocs(case_identifier):
     # TODO should do this with the 2.0 SQLAlchemy API
     # TODO maybe this can be performed automatically with cascades
-    com_ids = IocComments.query.with_entities(
-        IocComments.comment_id
-    ).join(
-        Ioc
-    ).filter(
-        IocComments.comment_ioc_id == Ioc.ioc_id,
-        Ioc.case_id == case_identifier
-    ).all()
+    # Collect IOC ids linked to the case before removing the link rows.
+    ioc_ids = {
+        ioc.ioc_id for ioc in Ioc.query.with_entities(Ioc.ioc_id).filter(Ioc.case_id == case_identifier).all()
+    }
+    ioc_ids.update(
+        ioc_link.ioc_id for ioc_link in IocLink.query.with_entities(IocLink.ioc_id).filter(
+            IocLink.case_id == case_identifier
+        ).all()
+    )
 
-    com_ids = [c.comment_id for c in com_ids]
-    IocComments.query.filter(IocComments.comment_id.in_(com_ids)).delete()
+    # Remove every IOC link for the deleted case so the case FK can be dropped safely.
+    IocLink.query.filter(
+        IocLink.case_id == case_identifier
+    ).delete(synchronize_session=False)
 
-    Comments.query.filter(
-        Comments.comment_id.in_(com_ids)
-    ).delete()
-    Ioc.query.filter(Ioc.case_id == case_identifier).delete()
+    for ioc_id in ioc_ids:
+        # Remove IOC-event links for the case being deleted.
+        CaseEventsIoc.query.filter(
+            CaseEventsIoc.ioc_id == ioc_id,
+            CaseEventsIoc.case_id == case_identifier
+        ).delete(synchronize_session=False)
+
+        # Remove IOC-asset links only for assets that belong to the deleted case.
+        IocAssetLink.query.filter(
+            IocAssetLink.ioc_id == ioc_id,
+            IocAssetLink.asset_id.in_(
+                db.session.query(CaseAssets.asset_id).filter(CaseAssets.case_id == case_identifier)
+            )
+        ).delete(synchronize_session=False)
+
+        comment_ids = [row.comment_id for row in Comments.query.with_entities(
+            Comments.comment_id
+        ).join(
+            IocComments,
+            Comments.comment_id == IocComments.comment_id
+        ).filter(
+            IocComments.comment_ioc_id == ioc_id,
+            Comments.comment_case_id == case_identifier
+        ).all()]
+
+        if comment_ids:
+            IocComments.query.filter(
+                IocComments.comment_id.in_(comment_ids)
+            ).delete(synchronize_session=False)
+            Comments.query.filter(
+                Comments.comment_id.in_(comment_ids)
+            ).delete(synchronize_session=False)
+
+        # If the IOC is still linked to another case, keep the IOC and its comments.
+        if IocLink.query.filter(IocLink.ioc_id == ioc_id).first():
+            continue
+
+        Ioc.query.filter(Ioc.ioc_id == ioc_id).delete(synchronize_session=False)
 
 
 def _delete_assets(case_identifier):
@@ -386,9 +429,13 @@ def _delete_notes(case_identifier):
 
 
 def _delete_tasks(case_identifier):
+    from app.models.models import TaskResponse
+
     delete_tasks_comments_in_case(case_identifier)
     tasks = CaseTasks.query.filter(CaseTasks.task_case_id == case_identifier).all()
     for task in tasks:
+        # Delete task responses first (FK to case_tasks)
+        TaskResponse.query.filter(TaskResponse.task == task.id).delete()
         TaskAssignee.query.filter(TaskAssignee.task_id == task.id).delete()
         CaseTasks.query.filter(CaseTasks.id == task.id).delete()
 
@@ -399,6 +446,52 @@ def _delete_events(case_identifier):
     for event in da:
         CaseEventCategory.query.filter(CaseEventCategory.event_id == event.event_id).delete()
     CasesEvent.query.filter(CasesEvent.case_id == case_identifier).delete()
+
+
+def _delete_artifacts(case_identifier):
+    artifact_links = ArtifactLink.query.filter(ArtifactLink.case_id == case_identifier).all()
+
+    for artifact_link in artifact_links:
+        artifact_id = artifact_link.artifact_id
+
+        ArtifactLink.query.filter(
+            and_(
+                ArtifactLink.artifact_id == artifact_id,
+                ArtifactLink.case_id == case_identifier
+            )
+        ).delete()
+
+        other_links = ArtifactLink.query.filter(
+            ArtifactLink.artifact_id == artifact_id
+        ).first()
+
+        if not other_links:
+            comment_ids = ArtifactComments.query.with_entities(
+                ArtifactComments.comment_id
+            ).filter(
+                ArtifactComments.comment_artifact_id == artifact_id
+            ).all()
+
+            for comment_id_row in comment_ids:
+                Comments.query.filter(
+                    Comments.comment_id == comment_id_row.comment_id
+                ).delete()
+
+            ArtifactComments.query.filter(
+                ArtifactComments.comment_artifact_id == artifact_id
+            ).delete()
+
+            ArtifactAssetLink.query.filter(
+                ArtifactAssetLink.artifact_id == artifact_id
+            ).delete()
+
+            CaseEventsArtifact.query.filter(
+                CaseEventsArtifact.artifact_id == artifact_id
+            ).delete()
+
+            Artifact.query.filter(
+                Artifact.artifact_id == artifact_id
+            ).delete()
 
 
 def delete_case(case_id):
@@ -447,6 +540,7 @@ def delete_case(case_id):
     _delete_tasks(case_id)
 
     _delete_events(case_id)
+    _delete_artifacts(case_id)
 
     UserCaseAccess.query.filter(UserCaseAccess.case_id == case_id).delete()
     UserCaseEffectiveAccess.query.filter(UserCaseEffectiveAccess.case_id == case_id).delete()

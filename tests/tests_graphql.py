@@ -689,15 +689,17 @@ class TestsGraphQL(TestCase):
         payload = {'query': 'mutation {caseCreate(name: "case2", description: "Some description", clientId: 1, socId: "1", classificationId : 1) { case { '
                             'caseId }}'}
         self._subject.execute_graphql_query(payload)
-        case_id = 2
         self._subject.execute_graphql_query(payload)
-        payload = {'query': 'query { cases { edges { node { caseId name } cursor } } }'}
-        self._subject.execute_graphql_query(payload)
-        payload = {'query': 'query { cases(first:1, after:"YXJyYXljb25uZWN0aW9uOjA="){ edges { node { caseId } cursor } } }'}
+        payload = {'query': 'query { cases(first: 2) { edges { node { caseId name } cursor } } }'}
         body = self._subject.execute_graphql_query(payload)
-        for case in body['data']['cases']['edges']:
-            test_case_id = case['node']['caseId']
-            self.assertEqual(case_id, test_case_id)
+        first_edge = body['data']['cases']['edges'][0]
+        second_edge = body['data']['cases']['edges'][1]
+
+        payload = {
+            'query': f'query {{ cases(first: 1, after: "{first_edge["cursor"]}") {{ edges {{ node {{ caseId }} cursor }} }} }}'
+        }
+        body = self._subject.execute_graphql_query(payload)
+        self.assertEqual(second_edge['node']['caseId'], body['data']['cases']['edges'][0]['node']['caseId'])
 
     def test_graphql_cases_classificationId_should_not_fail(self):
         classification_id = 1
@@ -901,20 +903,27 @@ class TestsGraphQL(TestCase):
         case_identifier = self._create_case()
         payload = {'query': f'mutation {{ iocCreate(caseId: {case_identifier}, typeId: 1, tlpId: 1, value: "test2") {{ ioc {{ iocValue iocId }} }} }}'}
         response = self._subject.execute_graphql_query(payload)
-        ioc_identifier = response['data']['iocCreate']['ioc']['iocId']
         payload = {
             'query': f'mutation {{ iocCreate(caseId: {case_identifier}, typeId: 1, tlpId: 1, value: "testtest") {{ ioc {{ iocValue iocId }} }} }}'}
         self._subject.execute_graphql_query(payload)
         payload = {
             'query': f'''{{
                case(caseId: {case_identifier}) {{
-                     iocs(first: 1) {{ edges {{ node {{ iocValue iocId }} }} }} }}
+                     iocs(first: 2) {{ edges {{ node {{ iocValue iocId }} cursor }} }} }}
                   }}'''
         }
         body = self._subject.execute_graphql_query(payload)
-        for ioc in body['data']['case']['iocs']['edges']:
-            iocid = ioc['node']['iocId']
-            self.assertEqual(ioc_identifier, iocid)
+        first_edge = body['data']['case']['iocs']['edges'][0]
+        second_edge = body['data']['case']['iocs']['edges'][1]
+
+        payload = {
+            'query': f'''{{
+               case(caseId: {case_identifier}) {{
+                     iocs(first: 1, after: "{first_edge['cursor']}") {{ edges {{ node {{ iocValue iocId }} cursor }} }} }}
+                  }}'''
+        }
+        body = self._subject.execute_graphql_query(payload)
+        self.assertEqual(second_edge['node']['iocId'], body['data']['case']['iocs']['edges'][0]['node']['iocId'])
 
     def test_graphql_iocs_filter_iocTypeId_should_not_fail(self):
         case_identifier = self._create_case()
