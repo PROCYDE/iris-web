@@ -7,9 +7,21 @@ function add_asset_type() {
         }
         init_asset_type_icon_selects();
         $('#form_new_asset_type').submit("click", function (event) {
-
-
             event.preventDefault();
+
+            if ($('#use_same_icon').is(':checked')) {
+                if (!$('#asset_icon_not_compromised').val() && !$('#existing_icon_not_compromised').val()) {
+                    notify_error("Please select or upload an icon for the not-compromised state.");
+                    return false;
+                }
+            } else {
+                if ((!$('#asset_icon_not_compromised').val() && !$('#existing_icon_not_compromised').val())
+                    || (!$('#asset_icon_compromised').val() && !$('#existing_icon_compromised').val())) {
+                    notify_error("Please either check \"Use the same icon for compromised\" or select/upload an icon for both states.");
+                    return false;
+                }
+            }
+
             var formData = new FormData(this);
 
             $.ajax({
@@ -161,6 +173,23 @@ function assettype_detail(asset_id) {
 
         $('#form_new_asset_type').submit("click", function (event) {
             event.preventDefault();
+
+            var hasNc = $('.card.card-body').eq(0).find('span.text-muted').text().trim() === 'Current:';
+            var hasC = $('.card.card-body').eq(1).find('span.text-muted').text().trim() === 'Current:';
+
+            if ($('#use_same_icon').is(':checked')) {
+                if (!$('#asset_icon_not_compromised').val() && !$('#existing_icon_not_compromised').val() && !hasNc) {
+                    notify_error("Please select or upload an icon for the not-compromised state.");
+                    return false;
+                }
+            } else {
+                if ((!$('#asset_icon_not_compromised').val() && !$('#existing_icon_not_compromised').val() && !hasNc)
+                    || (!$('#asset_icon_compromised').val() && !$('#existing_icon_compromised').val() && !hasC)) {
+                    notify_error("Please either check \"Use the same icon for compromised\" or select/upload an icon for both states.");
+                    return false;
+                }
+            }
+
             var formData = new FormData(this);
 
             $.ajax({
