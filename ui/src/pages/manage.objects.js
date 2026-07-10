@@ -5,6 +5,7 @@ function add_asset_type() {
              ajax_notify_error(xhr, url);
              return false;
         }
+        init_asset_type_icon_selects();
         $('#form_new_asset_type').submit("click", function (event) {
 
 
@@ -89,6 +90,63 @@ function refresh_asset_table() {
   notify_success("Refreshed");
 }
 
+/* Initialise the "choose existing icon" selectpickers in the asset type modal.
+   Options are rendered server-side; this just wires up selection <-> hidden input. */
+function init_asset_type_icon_selects() {
+    $('#existing_icon_not_compromised_select').selectpicker({
+        liveSearch: true,
+        liveSearchPlaceholder: 'Search icons...',
+        style: 'btn-outline-white'
+    }).on('changed.bs.select', function () {
+        var val = $(this).val();
+        $('#existing_icon_not_compromised').val(val || '');
+        if (val) {
+            $('#asset_icon_not_compromised').val('');
+        }
+    });
+
+    $('#existing_icon_compromised_select').selectpicker({
+        liveSearch: true,
+        liveSearchPlaceholder: 'Search icons...',
+        style: 'btn-outline-white'
+    }).on('changed.bs.select', function () {
+        var val = $(this).val();
+        $('#existing_icon_compromised').val(val || '');
+        if (val) {
+            $('#asset_icon_compromised').val('');
+        }
+    });
+
+    $('#asset_icon_not_compromised').on('change', function () {
+        if (this.value) {
+            $('#existing_icon_not_compromised_select').selectpicker('val', '');
+            $('#existing_icon_not_compromised').val('');
+        }
+        var fileName = this.value.split('\\').pop();
+        $(this).next('.custom-file-label').text(fileName || 'Choose file');
+    });
+    $('#asset_icon_compromised').on('change', function () {
+        if (this.value) {
+            $('#existing_icon_compromised_select').selectpicker('val', '');
+            $('#existing_icon_compromised').val('');
+        }
+        var fileName = this.value.split('\\').pop();
+        $(this).next('.custom-file-label').text(fileName || 'Choose file');
+    });
+
+    $('#use_same_icon').on('change', function () {
+        var checked = $(this).is(':checked');
+        if (checked) {
+            $('#existing_icon_compromised_select').prop('disabled', true).selectpicker('refresh');
+            $('#asset_icon_compromised').prop('disabled', true);
+            $('#existing_icon_compromised').val('');
+        } else {
+            $('#existing_icon_compromised_select').prop('disabled', false).selectpicker('refresh');
+            $('#asset_icon_compromised').prop('disabled', false);
+        }
+    });
+}
+
 
 /* Fetch the details of an asset and allow modification */
 function assettype_detail(asset_id) {
@@ -98,6 +156,8 @@ function assettype_detail(asset_id) {
              ajax_notify_error(xhr, url);
              return false;
         }
+
+        init_asset_type_icon_selects();
 
         $('#form_new_asset_type').submit("click", function (event) {
             event.preventDefault();
