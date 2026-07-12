@@ -68,6 +68,10 @@ from app.models.cases import CasesEvent
 from app.models.customers import Client
 from app.models.comments import Comments
 from app.models.models import Contact
+from app.models.models import Artifact
+from app.models.models import TaskResponse
+from app.models.models import CaseResponse
+from app.models.models import Webhook
 from app.models.models import DataStoreFile
 from app.models.models import EventCategory
 from app.models.models import GlobalTasks
@@ -854,10 +858,12 @@ class CaseTemplateSchema(ma.Schema):
     title_prefix: Optional[str] = fields.String(allow_none=True, validate=Length(max=32), missing="")
     summary: Optional[str] = fields.String(allow_none=True, missing="")
     tags: Optional[List[str]] = fields.List(fields.String(), allow_none=True, missing=[])
+    tasks: Optional[list] = fields.Raw(allow_none=True, missing=[])
+    note_directories: Optional[list] = fields.Raw(allow_none=True, missing=[])
+    actions: Optional[list] = fields.Raw(allow_none=True)
+    triggers: Optional[list] = fields.Raw(allow_none=True, missing=[])
+    input_params: Optional[dict] = fields.Raw(allow_none=True, missing={})
     classification: Optional[str] = fields.String(allow_none=True, missing="")
-    note_directories: Optional[List[Dict[str, Union[str, List[Dict[str, str]]]]]] = fields.List(fields.Dict(),
-                                                                                                allow_none=True,
-                                                                                                missing=[])
 
     @staticmethod
     def validate_string_or_list(value: Union[str, List[str]]) -> Union[str, List[str]]:
@@ -912,11 +918,8 @@ class CaseTemplateSchema(ma.Schema):
                         raise ValidationError('All items in dict must be str')
         return value
 
-    tasks: Optional[List[Dict[str, Union[str, List[str]]]]] = fields.List(
-        fields.Dict(keys=fields.Str(), values=fields.Raw(validate=[validate_string_or_list])),
-        allow_none=True,
-        missing=[]
-    )
+    class Meta:
+        unknown = EXCLUDE
 
 
 class IocTypeSchema(ma.SQLAlchemyAutoSchema):
@@ -989,8 +992,18 @@ class IocSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     tlp = ma.Nested(TlpSchema)
 
     def get_link(self, ioc):
+        # Prefer the case id from schema context (viewing case), fall back to IOC's stored case_id
+        caseid = None
+        try:
+            caseid = self.context.get('caseid') if getattr(self, 'context', None) else None
+        except Exception:
+            caseid = None
+
+        if caseid is None:
+            caseid = getattr(ioc, 'case_id', None)
+
         user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
-        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations, caseid)
         return [row._asdict() for row in ial]
 
     link = ma.Method('get_link')
@@ -1087,6 +1100,23 @@ class IocSchema(ma.SQLAlchemyAutoSchema):
     ioc_enrichment: Optional[Dict[str, Any]] = auto_field('ioc_enrichment', required=False)
     ioc_type: Optional[IocTypeSchema] = ma.Nested(IocTypeSchema, required=False)
 
+    def get_link(self, ioc):
+        # Prefer the case id from schema context (viewing case), fall back to IOC's stored case_id
+        caseid = None
+        try:
+            caseid = self.context.get('caseid') if getattr(self, 'context', None) else None
+        except Exception:
+            caseid = None
+
+        if caseid is None:
+            caseid = getattr(ioc, 'case_id', None)
+
+        user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations, caseid)
+        return [row._asdict() for row in ial]
+
+    link = ma.Method('get_link')
+
     class Meta:
         model = Ioc
         sqla_session = db.session
@@ -1137,6 +1167,52 @@ class IocSchema(ma.SQLAlchemyAutoSchema):
                 if not isinstance(tag, str):
                     raise ValidationError('All items in list must be strings', field_name='ioc_tags')
                 add_db_tag(tag.strip())
+
+        return data
+
+
+class ArtifactSchema(ma.SQLAlchemyAutoSchema):
+    artifact_value: str = auto_field('artifact_value', required=True, validate=Length(min=1), allow_none=False)
+    artifact_type: Optional[IocTypeSchema] = ma.Nested(IocTypeSchema, required=False)
+
+    class Meta:
+        model = Artifact
+        sqla_session = db.session
+        load_instance = True
+        include_fk = True
+        unknown = EXCLUDE
+
+    @pre_load
+    def verify_data(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        if data.get('artifact_type_id'):
+            assert_type_mml(input_var=data.get('artifact_type_id'), field_name='artifact_type_id', type=int)
+            ioc_type = IocType.query.filter(IocType.type_id == data.get('artifact_type_id')).first()
+            if not ioc_type:
+                raise ValidationError('Invalid Artifact type ID', field_name='artifact_type_id')
+
+        if data.get('artifact_tlp_id'):
+            assert_type_mml(input_var=data.get('artifact_tlp_id'), field_name='artifact_tlp_id', type=int,
+                            max_val=POSTGRES_INT_MAX)
+            Tlp.query.filter(Tlp.tlp_id == data.get('artifact_tlp_id')).count()
+
+        if data.get('artifact_tags'):
+            for tag in data.get('artifact_tags').split(','):
+                if not isinstance(tag, str):
+                    raise ValidationError('All items in list must be strings', field_name='artifact_tags')
+                add_db_tag(tag.strip())
+
+        return data
+
+    @post_load
+    def custom_attributes_merge(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        new_attr = data.get('custom_attributes')
+        if new_attr is not None:
+            assert_type_mml(input_var=data.get('artifact_id'),
+                            field_name='artifact_id',
+                            type=int,
+                            allow_none=True)
+
+            data['custom_attributes'] = merge_custom_attributes(new_attr, data.get('artifact_id'), 'artifact')
 
         return data
 
@@ -1652,6 +1728,7 @@ class CaseSchema(ma.SQLAlchemyAutoSchema):
     initial_date: Optional[datetime.datetime] = auto_field('initial_date', required=False)
     classification_id: Optional[int] = auto_field('classification_id', required=False, allow_none=True)
     reviewer_id: Optional[int] = auto_field('reviewer_id', required=False, allow_none=True)
+    owner_id: Optional[int] = auto_field('owner_id', required=False, allow_none=True)
     review_status: Optional[str] = auto_field('review_status', required=False, allow_none=True)
     severity_id: Optional[int] = auto_field('severity_id', required=False, allow_none=True)
 
@@ -1678,6 +1755,10 @@ class CaseSchema(ma.SQLAlchemyAutoSchema):
         """
         if data.get('classification_id') == "":
             del data['classification_id']
+
+        # Drop empty state_id values to avoid integer validation errors when UI sends an empty string
+        if data.get('state_id') == "":
+            del data['state_id']
 
         return data
 
@@ -2031,6 +2112,34 @@ class CaseTaskSchema(ma.SQLAlchemyAutoSchema):
             data['custom_attributes'] = merge_custom_attributes(new_attr, data.get('id'), 'task')
 
         return data
+
+
+class TaskResponseSchema(ma.SQLAlchemyAutoSchema):
+    created_by_user: fields.Nested = fields.Nested('UserSchema', only=['name'], dump_only=True)
+
+    class Meta:
+        model = TaskResponse
+        load_instance = True
+        include_fk = True
+        unknown = EXCLUDE
+
+
+class CaseResponseSchema(ma.SQLAlchemyAutoSchema):
+    created_by_user: fields.Nested = fields.Nested('UserSchema', only=['name'], dump_only=True)
+
+    class Meta:
+        model = CaseResponse
+        load_instance = True
+        include_fk = True
+        unknown = EXCLUDE
+
+
+class WebhookSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Webhook
+        load_instance = True
+        include_fk = True
+        unknown = EXCLUDE
 
 
 class CaseEvidenceSchema(ma.SQLAlchemyAutoSchema):
@@ -2427,6 +2536,7 @@ class CaseSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     initial_date: Optional[datetime.datetime] = auto_field('initial_date', required=False)
     classification_id: Optional[int] = auto_field('classification_id', required=False, allow_none=True)
     reviewer_id: Optional[int] = auto_field('reviewer_id', required=False, allow_none=True)
+    owner_id: Optional[int] = auto_field('owner_id', required=False, allow_none=True)
     access_level = fields.Integer(required=False)
 
     owner = ma.Nested(UserSchema, only=['id', 'user_name', 'user_login', 'user_email'])
@@ -2461,6 +2571,10 @@ class CaseSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         """
         if data.get('classification_id') == "":
             del data['classification_id']
+
+        # Drop empty state_id values to avoid integer validation errors when UI sends an empty string
+        if data.get('state_id') == "":
+            del data['state_id']
 
         return data
 

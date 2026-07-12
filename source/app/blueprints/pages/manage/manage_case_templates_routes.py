@@ -21,8 +21,7 @@ from flask import render_template
 from flask import url_for
 
 from app.datamgmt.manage.manage_case_templates_db import get_case_template_by_id
-from app.forms import CaseTemplateForm
-from app.forms import AddAssetForm
+from app.forms import AddAssetForm, CaseTemplateForm
 from app.models.models import CaseTemplate
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_requires
@@ -76,7 +75,10 @@ def case_template_modal(cur_id, caseid, url_redir):
         "tags": case_template.tags,
         "tasks": case_template.tasks,
         "note_directories": case_template.note_directories,
-        "classification": case_template.classification
+        "actions": case_template.actions,
+        "triggers": case_template.triggers,
+        "input_params": case_template.input_params,
+        "classification": case_template.classification,
     }
 
     form.case_template_json.data = case_template_dict
@@ -93,32 +95,51 @@ def add_template_modal(caseid, url_redir):
     case_template = CaseTemplate()
     form = CaseTemplateForm()
     form.case_template_json.data = {
-        "name": "Template name",
-        "display_name": "Template Display Name",
-        "description": "Template description",
-        "author": "YOUR NAME",
-        "classification": "known-template-classification",
-        "title_prefix": "[PREFIX]",
-        "summary": "Summary to be set",
-        "tags": ["ransomware", "malware"],
-        "tasks": [
-            {
-                "title": "Task 1",
-                "description": "Task 1 description",
-                "tags": ["tag1", "tag2"]
-            }
-        ],
-        "note_directories": [
-            {
-                "title": "Note group 1",
-                "notes": [
-                    {
-                        "title": "Note 1",
-                        "content": "Note 1 content"
-                    }
-                ]
-            }
-        ]
+         "name": "Template name",
+    "display_name": "Template Display Name",
+    "description": "Template description",
+    "author": "YOUR NAME",
+    "classification": "known-template-classification",
+    "title_prefix": "[PREFIX]",
+    "summary": "Summary to be set",
+    "tags": [
+        "ransomware",
+        "malware"
+    ],
+    "tasks": [
+        {
+            "title": "Task 1",
+            "description": "Task 1 description",
+            "tags": [
+                "tag1",
+                "tag2"
+            ],
+            "actions": [
+                {
+                    "webhook_id": "Webhook Id",
+                    "display_name": "Action Name"
+                }
+            ]
+        }
+    ],
+    "note_directories": [
+        {
+            "title": "Note group 1",
+            "notes": [
+                {
+                    "title": "Note 1",
+                    "content": "Note 1 content"
+                }
+            ]
+        }
+    ],
+    "triggers": [
+        {
+            "webhook_id": "Webhook Id",
+            "display_name": "Trigger Name",
+            "input_params": {}
+    }]
+
     }
 
     return render_template("modal_case_template.html", form=form, case_template=case_template)

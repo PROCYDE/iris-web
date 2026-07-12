@@ -31,6 +31,7 @@ from app.models.customers import Client
 from app.models.models import CustomAttribute
 from app.models.iocs import Ioc
 from app.models.models import Notes
+from app.models.models import Artifact
 
 log = logger.getLogger(__name__)
 
@@ -54,6 +55,8 @@ def update_all_attributes(object_type, previous_attribute, partial_overwrite=Fal
         obj_list = Cases.query.all()
     elif object_type == 'client':
         obj_list = Client.query.all()
+    elif object_type == 'artifact':
+        obj_list = Artifact.query.all()
 
     target_attr = get_default_custom_attributes(object_type)
 
@@ -114,6 +117,8 @@ def update_all_attributes(object_type, previous_attribute, partial_overwrite=Fal
 
 def get_default_custom_attributes(object_type):
     ca = CustomAttribute.query.filter(CustomAttribute.attribute_for == object_type).first()
+    if ca is None:
+        return {}
     return ca.attribute_content
 
 

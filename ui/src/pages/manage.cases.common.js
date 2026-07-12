@@ -41,6 +41,12 @@ function close_case(id) {
             .done((data) => {
                 if (!refresh_case_table()) {
                     window.location.reload();
+                } else {
+                    // Refresh page if we're currently viewing this case
+                    let currentCaseId = get_caseid();
+                    if (currentCaseId && parseInt(currentCaseId) === parseInt(id)) {
+                        window.location.reload();
+                    }
                 }
                 $('#modal_case_detail').modal('hide');
             });
@@ -75,9 +81,10 @@ function remove_case(id) {
         .then((willDelete) => {
             if (willDelete) {
                 delete_request_api(`/api/v2/cases/${id}`)
-                .done((data, textStatus) => {
-                    if (textStatus !== 'nocontent') {
-                        notify_error(data);
+                .done((data, textStatus, jqXHR) => {
+                    // 204 No Content returns success with no data
+                    if (jqXHR.status !== 204 && textStatus !== 'success') {
+                        notify_error(data || 'Unknown error');
                         return;
                     }
                     notify_success('Case successfully deleted');

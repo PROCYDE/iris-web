@@ -42,8 +42,9 @@ def customers_create(customer: Client):
 
 def customers_create_with_user(user, customer: Client):
     customers_create(customer)
-    track_activity(f'Added customer {customer.name}', ctx_less=True)
+    # Associate the created customer with the user before recording the activity
     add_user_to_customer(user.id, customer.client_id)
+    track_activity(f'Added customer {customer.name}', ctx_less=True)
 
 
 def customers_get(identifier) -> Client:

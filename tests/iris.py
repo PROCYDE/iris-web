@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from time import sleep
+import os
 from uuid import uuid4
 from pathlib import Path
 from docker_compose import DockerCompose
@@ -24,9 +25,11 @@ from rest_api import RestApi
 from user import User
 from socket_io_context_manager import SocketIOContextManager
 
-API_URL = 'http://127.0.0.1:8000'
-# TODO SSOT: this should be directly read from the .env file
-_API_KEY = 'B8BA5D730210B50F41C06941582D7965D57319D5685440587F98DFDC45A01594'
+API_URL = 'https://127.0.0.1'
+_API_KEY = os.environ.get(
+    'IRIS_ADM_API_KEY',
+    'Lb953gjO9RxO4Wt_viTAHKl1s1Qhzjywt5uvrN3I15VDB3Tu1Kj5qjIA'
+)
 _IRIS_PATH = Path('..')
 _ADMINISTRATOR_USER_LOGIN = 'administrator'
 ADMINISTRATOR_USER_IDENTIFIER = 1
@@ -119,18 +122,49 @@ class Iris:
             'case_soc_id': ''
         }
         response = self._api.post('/api/v2/cases', body).json()
-        return response['case_id']
+        # Support both legacy responses (top-level keys) and wrapped responses {status,message,data: {...}}
+        if isinstance(response, dict):
+            if 'case_id' in response:
+                return response['case_id']
+            if response.get('data') and isinstance(response.get('data'), dict) and 'case_id' in response['data']:
+                return response['data']['case_id']
+
+        raise KeyError('case_id not found in create case response: %s' % (response,))
 
     def execute_graphql_query(self, payload):
         return self._administrator.execute_graphql_query(payload)
 
     def clear_database(self):
+        # Delete alerts first
+        response = self.get('api/v2/alerts').json()
+        for alert in response['data']:
+            identifier = alert['alert_id']
+            self.delete(f'/api/v2/alerts/{identifier}')
+
+        # Delete global tasks before cases so task cleanup does not depend on case state.
+        global_tasks = self.get('/api/v2/global-tasks').json()
+        for global_task in global_tasks['data']:
+            identifier = global_task['task_id']
+            self.delete(f'/api/v2/global-tasks/{identifier}')
+
+        # Delete cases before users (cases reference users)
         cases = self.get('/api/v2/cases', query_parameters={'per_page': 1000000000}).json()
         for case in cases['data']:
             identifier = case['case_id']
             if identifier == _INITIAL_DEMO_CASE_IDENTIFIER:
                 continue
             self.delete(f'/api/v2/cases/{identifier}')
+
+        # Delete users after cases
+        users = self.get('/manage/users/list').json()
+        for user in users['data']:
+            identifier = user['user_id']
+            if identifier == ADMINISTRATOR_USER_IDENTIFIER:
+                continue
+            self.get(f'/manage/users/deactivate/{identifier}')
+            self.delete(f'/api/v2/manage/users/{identifier}')
+
+        # Delete groups
         groups = self.get('/manage/groups/list').json()
         for group in groups['data']:
             identifier = group['group_id']
@@ -150,11 +184,26 @@ class Iris:
             identifier = user['user_id']
             self.get(f'/manage/users/deactivate/{identifier}')
             self.delete(f'/api/v2/manage/users/{identifier}')
+
+        # Reset administrator customer access
         body = {'customers_membership': [IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
         self.create(f'/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}/customers/update', body)
+
+        # Reset server settings that affect password validation between test modules.
+        self.create('/manage/settings/update', {
+            'password_policy_min_length': '12',
+            'password_policy_upper_case': True,
+            'password_policy_lower_case': True,
+            'password_policy_digit': True,
+            'password_policy_special_chars': ''
+        })
+
+        # Delete customers last
         customers = self.get('/manage/customers/list').json()
         for customer in customers['data']:
             identifier = customer['customer_id']
+            if identifier == IRIS_INITIAL_CUSTOMER_IDENTIFIER:
+                continue
             self.create(f'/manage/customers/delete/{identifier}', {})
 
     def extract_logs(self, service):

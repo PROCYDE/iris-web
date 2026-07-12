@@ -28,6 +28,7 @@ from app.datamgmt.case.case_events_db import save_event_category
 from app.datamgmt.case.case_events_db import update_event_assets
 from app.models.errors import BusinessProcessingError
 from app.datamgmt.case.case_events_db import update_event_iocs
+from app.datamgmt.case.case_events_db import update_event_artifacts
 from app.datamgmt.case.case_events_db import get_case_event
 from app.datamgmt.case.case_events_db import delete_event
 from app.iris_engine.utils.tracker import track_activity
@@ -35,7 +36,7 @@ from app.iris_engine.utils.collab import collab_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 
 
-def events_create(case_identifier, event: CasesEvent, event_category_id, event_assets, event_iocs, sync_iocs_assets) -> CasesEvent:
+def events_create(case_identifier, event: CasesEvent, event_category_id, event_assets, event_iocs, sync_iocs_assets, event_artifacts=None) -> CasesEvent:
 
     event.case_id = case_identifier
     event.event_added = datetime.utcnow()
@@ -59,6 +60,11 @@ def events_create(case_identifier, event: CasesEvent, event_category_id, event_a
     if not success:
         raise BusinessProcessingError('Error while saving linked iocs', data=log)
 
+    if event_artifacts:
+        success, log = update_event_artifacts(event.event_id, case_identifier, event_artifacts)
+        if not success:
+            raise BusinessProcessingError('Error while saving linked artifacts', data=log)
+
     setattr(event, 'event_category_id', event_category_id)
 
     event = call_modules_hook('on_postload_event_create', event, caseid=case_identifier)
@@ -74,7 +80,7 @@ def events_get(identifier) -> CasesEvent:
     return event
 
 
-def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs, event_sync_iocs_assets) -> CasesEvent:
+def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs, event_sync_iocs_assets, event_artifacts=None) -> CasesEvent:
     add_obj_history_entry(event, 'updated')
 
     update_timeline_state(event.case_id)
@@ -91,6 +97,11 @@ def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs
     success, log = update_event_iocs(event.event_id, event.case_id, event_iocs)
     if not success:
         raise BusinessProcessingError('Error while saving linked iocs', data=log)
+
+    if event_artifacts is not None:
+        success, log = update_event_artifacts(event.event_id, event.case_id, event_artifacts)
+        if not success:
+            raise BusinessProcessingError('Error while saving linked artifacts', data=log)
 
     event = call_modules_hook('on_postload_event_update', event, caseid=event.case_id)
 

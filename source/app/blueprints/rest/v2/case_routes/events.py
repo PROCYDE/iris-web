@@ -32,6 +32,10 @@ from app.business.events import events_create
 from app.business.events import events_get
 from app.business.events import events_update
 from app.business.events import events_delete
+from app.datamgmt.case.case_events_db import get_event_assets_ids
+from app.datamgmt.case.case_events_db import get_event_iocs_ids
+from app.datamgmt.case.case_events_db import get_event_artifacts_ids
+from app.datamgmt.case.case_events_db import get_event_category
 from app.models.cases import CasesEvent
 from app.schema.marshables import EventSchema
 from app.models.errors import BusinessProcessingError
@@ -73,10 +77,15 @@ class Events:
             event_category_id = request_data.get('event_category_id')
             event_assets = request_data.get('event_assets')
             event_iocs = request_data.get('event_iocs')
+            event_artifacts = request_data.get('event_artifacts')
             sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
 
-            event = events_create(case_identifier, event, event_category_id, event_assets, event_iocs, sync_iocs_assets)
+            event = events_create(case_identifier, event, event_category_id, event_assets, event_iocs, sync_iocs_assets, event_artifacts)
             result = self._schema.dump(event)
+            # event_category_id is already set by events_create, but populate linked items
+            result['event_assets'] = event_assets
+            result['event_iocs'] = event_iocs
+            result['event_artifacts'] = get_event_artifacts_ids(event.event_id, case_identifier)
             notify(case_identifier, 'events', 'updated', event.event_id, object_data=result)
 
             return response_api_created(result)
@@ -95,6 +104,11 @@ class Events:
                 return ac_api_return_access_denied(caseid=event.case_id)
 
             result = self._schema.dump(event)
+            # Populate fields from relationships
+            result['event_category_id'] = event.category[0].id if event.category else None
+            result['event_assets'] = get_event_assets_ids(identifier, case_identifier)
+            result['event_iocs'] = get_event_iocs_ids(identifier, case_identifier)
+            result['event_artifacts'] = get_event_artifacts_ids(identifier, case_identifier)
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
@@ -118,11 +132,17 @@ class Events:
             event_category_id = request_data.get('event_category_id')
             event_assets = request_data.get('event_assets')
             event_iocs = request_data.get('event_iocs')
+            event_artifacts = request_data.get('event_artifacts')
             event_sync_iocs_assets = request_data.get('event_sync_iocs_assets')
 
-            event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets)
+            event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets, event_artifacts)
 
             result = self._schema.dump(event)
+            # Populate fields from relationships
+            result['event_category_id'] = event.category[0].id if event.category else None
+            result['event_assets'] = get_event_assets_ids(identifier, case_identifier)
+            result['event_iocs'] = get_event_iocs_ids(identifier, case_identifier)
+            result['event_artifacts'] = get_event_artifacts_ids(identifier, case_identifier)
             notify(case_identifier, 'events', 'updated', identifier, object_data=result)
 
             return response_api_success(result)

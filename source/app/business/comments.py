@@ -52,6 +52,7 @@ from app.datamgmt.case.case_iocs_db import delete_ioc_comment
 from app.datamgmt.case.case_notes_db import delete_note_comment
 from app.datamgmt.case.case_tasks_db import delete_task_comment
 from app.datamgmt.case.case_events_db import delete_event_comment
+from app.models.models import IocLink
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.comments import Comments
@@ -173,7 +174,17 @@ def comments_create_for_evidence(current_user, evidence: CaseReceivedFile, comme
 
 
 def comments_create_for_ioc(current_user, ioc: Ioc, comment: Comments):
-    _create_comment(current_user, comment, ioc.case_id)
+    comment_case_id = ioc.case_id
+    latest_link = IocLink.query.with_entities(IocLink.case_id).filter(
+        IocLink.ioc_id == ioc.ioc_id
+    ).order_by(
+        IocLink.id.desc()
+    ).first()
+
+    if latest_link:
+        comment_case_id = latest_link.case_id
+
+    _create_comment(current_user, comment, comment_case_id)
 
     add_comment_to_ioc(ioc.ioc_id, comment.comment_id)
 
@@ -183,8 +194,8 @@ def comments_create_for_ioc(current_user, ioc: Ioc, comment: Comments):
         'comment': comment,
         'ioc': ioc
     }
-    call_modules_hook('on_postload_ioc_commented', hook_data, caseid=ioc.case_id)
-    track_activity(f'ioc "{ioc.ioc_value}" commented', caseid=ioc.case_id)
+    call_modules_hook('on_postload_ioc_commented', hook_data, caseid=comment_case_id)
+    track_activity(f'ioc "{ioc.ioc_value}" commented', caseid=comment_case_id)
 
 
 def comments_create_for_note(current_user, note: Notes, comment: Comments):
