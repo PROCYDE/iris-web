@@ -193,9 +193,11 @@ class CaseUpdate(Mutation):
         request['case_customer'] = case.client_id if not request.get('case_customer') else request.get('case_customer')
         request['reviewer_id'] = None if request.get('reviewer_id') == '' else request.get('reviewer_id')
 
+        previous_classification_id = case.classification_id
         add_case_schema = CaseSchema()
         updated_case = add_case_schema.load(request, instance=case, partial=True)
         protagonists = request.get('protagonists')
         tags = request.get('case_tags')
-        case = cases_update(case, updated_case, protagonists, tags)
+        case = cases_update(case, updated_case, protagonists, tags,
+                            previous_classification_id=previous_classification_id)
         return CaseUpdate(case=case)

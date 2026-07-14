@@ -166,11 +166,13 @@ def cases_delete(case_identifier):
         raise BusinessProcessingError('Cannot delete the case. Please check server logs for additional informations')
 
 
-def cases_update(case: Cases, updated_case, protagonists, tags) -> Cases:
+def cases_update(case: Cases, updated_case, protagonists, tags,
+                 previous_classification_id=None) -> Cases:
     try:
         closed_state_id = get_case_state_by_name('Closed').state_id
         previous_case_state = case.state_id
-        previous_classification_id = case.classification_id
+        if previous_classification_id is None:
+            previous_classification_id = case.classification_id
         case_previous_reviewer_id = case.reviewer_id
         db.session.commit()
 

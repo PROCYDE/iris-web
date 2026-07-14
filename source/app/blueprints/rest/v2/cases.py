@@ -287,6 +287,7 @@ class CasesOperations:
                 request_data['reviewer_id'] = None
             request_data.pop('review_status', None)
 
+            previous_classification_id = case.classification_id
             updated_case = self._schema.load(
                 request_data,
                 instance=case,
@@ -296,7 +297,8 @@ class CasesOperations:
 
             protagonists = request_data.get('protagonists')
             tags = request_data.get('case_tags')
-            case = cases_update(case, updated_case, protagonists, tags)
+            case = cases_update(case, updated_case, protagonists, tags,
+                                previous_classification_id=previous_classification_id)
             result = self._schema.dump(case)
             return response_api_success(result)
         except ValidationError as e:
