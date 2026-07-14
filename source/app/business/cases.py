@@ -170,6 +170,7 @@ def cases_update(case: Cases, updated_case, protagonists, tags) -> Cases:
     try:
         closed_state_id = get_case_state_by_name('Closed').state_id
         previous_case_state = case.state_id
+        previous_classification_id = case.classification_id
         case_previous_reviewer_id = case.reviewer_id
         db.session.commit()
 
@@ -216,6 +217,17 @@ def cases_update(case: Cases, updated_case, protagonists, tags) -> Cases:
 
         register_case_protagonists(updated_case.case_id, protagonists)
         save_case_tags(tags, case)
+
+        if previous_classification_id != updated_case.classification_id:
+            add_obj_history_entry(
+                case,
+                f'classification_id from "{previous_classification_id}" to "{updated_case.classification_id}"'
+            )
+            track_activity(
+                f'case classification updated from {previous_classification_id} '
+                f'to {updated_case.classification_id}',
+                caseid=case.case_id
+            )
 
         updated_case = call_modules_hook('on_postload_case_update', data=updated_case, caseid=case.case_id)
 
