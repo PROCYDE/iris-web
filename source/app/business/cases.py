@@ -220,7 +220,12 @@ def cases_update(case: Cases, updated_case, protagonists, tags,
         register_case_protagonists(updated_case.case_id, protagonists)
         save_case_tags(tags, case)
 
+        logger.debug(f'Classification check: prev={previous_classification_id} '
+                      f'new={updated_case.classification_id} '
+                      f'same_obj={case is updated_case} '
+                      f'classification_in_req=unknown')
         if previous_classification_id != updated_case.classification_id:
+            logger.debug('Classification DETECTED change, writing history entry')
             add_obj_history_entry(
                 case,
                 f'classification_id from "{previous_classification_id}" to "{updated_case.classification_id}"'
@@ -230,6 +235,7 @@ def cases_update(case: Cases, updated_case, protagonists, tags,
                 f'to {updated_case.classification_id}',
                 caseid=case.case_id
             )
+            logger.debug('Classification history entry written')
 
         updated_case = call_modules_hook('on_postload_case_update', data=updated_case, caseid=case.case_id)
 
