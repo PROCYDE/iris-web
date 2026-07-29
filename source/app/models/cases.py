@@ -41,15 +41,7 @@ from sqlalchemy.orm import backref
 
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
-from app.datamgmt.states import update_assets_state
-from app.datamgmt.states import update_evidences_state
-from app.datamgmt.states import update_ioc_state
-from app.datamgmt.states import update_notes_state
 from sqlalchemy import Index
-
-from app.datamgmt.states import update_tasks_state
-from app.datamgmt.states import update_timeline_state
-from app.models.customers import Client
 
 
 class Cases(db.Model):

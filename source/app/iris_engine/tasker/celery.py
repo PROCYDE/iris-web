@@ -83,17 +83,17 @@ def _check_certificate_files():
     key_path = CeleryConfig.security_key
     cert_path = CeleryConfig.security_certificate
     store_path = CeleryConfig.security_cert_store
-    
+
     if not key_path or not cert_path or not store_path:
         return False
-    
+
     if not os.path.exists(key_path):
         return False
     if not os.path.exists(cert_path):
         return False
     if not os.path.exists(store_path):
         return False
-    
+
     return True
 
 
