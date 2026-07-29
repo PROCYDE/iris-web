@@ -239,8 +239,10 @@ def _parse_bool(value):
         return value
     return value.lower() in ('true', '1', 'yes', 'on')
 
+
 def _parse_float(value):
     return float(value)
+
 
 _celery_settings = [
     ("accept_content", json.loads),

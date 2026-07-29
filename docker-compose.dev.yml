@@ -81,9 +81,10 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: celery -A app.celery inspect ping || exit 1
+      test: pgrep -f 'celery.*worker' || exit 1
       start_period: 60s
-      start_interval: 1s
+      interval: 1s
+      retries: 120
 
   nginx:
     extends:

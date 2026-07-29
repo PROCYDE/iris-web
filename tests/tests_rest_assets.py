@@ -199,10 +199,10 @@ class TestsRestAssets(TestCase):
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
         asset_identifier = response['asset_id']
-        response = self._subject.create(f'/case/assets/{asset_identifier}/comments/add', {'comment_text': 'comment text'}).json()
+        response = self._subject.create(f'/case/assets/{asset_identifier}/comments/add', {'comment_text': 'comment text', 'cid': case_identifier}).json()
         comment_identifier = response['data']['comment_id']
         self._subject.delete(f'/api/v2/cases/{case_identifier}/assets/{asset_identifier}')
-        response = self._subject.create(f'/case/assets/{case_identifier}/comments/{comment_identifier}/edit', {'comment_text': 'new comment text'})
+        response = self._subject.create(f'/case/assets/{case_identifier}/comments/{comment_identifier}/edit', {'comment_text': 'new comment text', 'cid': case_identifier})
         # TODO should ideally rather be 404 here
         self.assertEqual(400, response.status_code)
 

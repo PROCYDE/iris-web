@@ -68,6 +68,12 @@ def dim_tasks_get(task_identifier):
     if isinstance(task.info, IIStatus):
         success = _get_success(task.info)
         logs = task.info.get_logs()
+    elif isinstance(task.info, dict):
+        # task_hook_wrapper returns a dict (not an IIStatus) for JSON
+        # serialization compatibility with Celery's result backend.
+        # The dict mirrors IIStatus fields: code < 0xFF00 means success.
+        success = 'Success' if task.info.get('code', 0xFFFF) < 0xFF00 else 'Failure'
+        logs = task.info.get('logs', [])
     else:
         success = 'Failure'
         user = 'Shadow Iris'
@@ -132,6 +138,11 @@ def asynchronous_tasks_search(count):
                 success = result.is_success()
             except:
                 success = None
+        elif isinstance(result, dict):
+            # task_hook_wrapper returns a dict (not an IIStatus) for JSON
+            # serialization compatibility with Celery's result backend.
+            # The dict mirrors IIStatus fields: code < 0xFF00 means success.
+            success = result.get('code', 0xFFFF) < 0xFF00
         else:
             success = None
 

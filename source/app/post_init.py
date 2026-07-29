@@ -1190,8 +1190,7 @@ class PostInit:
                 celery.register_task(task)
 
     def _register_default_modules(self):
-        modules = ['iris_vt_module', 'iris_misp_module', 'iris_check_module',
-                   'iris_webhooks_module', 'iris_intelowl_module']
+        modules = ['iris_misp_module', 'iris_check_module', 'iris_webhooks_module']
 
         for module_name in modules:
             class_, _ = instantiate_module_from_name(module_name)
@@ -1200,7 +1199,7 @@ class PostInit:
             if not is_ready:
                 errors = ','.join(logs)
                 self._logger.info(f'Attempted to initiate {module_name}. Got {errors}')
-                return
+                continue
 
             module, logs = register_module(module_name)
             if module is None:

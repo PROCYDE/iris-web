@@ -52,6 +52,8 @@ def _serialize_value(obj):
     if hasattr(obj, '__iter__'):
         return str(obj)
     return obj
+
+
 from app.logger import logger
 from app import celery
 from app.db import db
